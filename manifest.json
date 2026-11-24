@@ -1,20 +1,28 @@
 {
-     "name": "АкваМонитор — Мониторинг водоматов",
-     "short_name": "АкваМонитор",
-     "description": "Мониторинг уровня воды в водоматах в реальном времени и построение маршрутов для водителей",
-     "start_url": "./index.html",
-     "scope": "./",
-     "display": "standalone",
-     "orientation": "any",
-     "background_color": "#f1f5f9",
-     "theme_color": "#0284c7",
-     "lang": "ru",
-     "icons": [
-       {
-         "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230ea5e9'/%3E%3Cstop offset='100%25' stop-color='%230284c7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='112' fill='url(%23g)'/%3E%3Cpath d='M256 96C256 96 144 224 144 312C144 373.856 194.144 424 256 424C317.856 424 368 373.856 368 312C368 224 256 96 256 96Z' fill='%23ffffff'/%3E%3Cpath d='M168 318C196 300 226 334 256 318C286 302 316 334 344 318C341 364 303 400 256 400C209 400 171 364 168 318Z' fill='%2338bdf8'/%3E%3C/svg%3E",
-         "sizes": "512x512",
-         "type": "image/svg+xml",
-         "purpose": "any maskable"
-       }
-     ]
-   }
+"id": "/aquamonitor/",
+"name": "АкваМонитор — Мониторинг водоматов",
+"short_name": "АкваМонитор",
+"description": "Мониторинг уровня воды в водоматах в реальном времени и построение маршрутов для водителей",
+"start_url": "./index.html",
+"scope": "./",
+"display": "standalone",
+"orientation": "any",
+"background_color": "#f1f5f9",
+"theme_color": "#0284c7",
+"lang": "ru",
+"categories": ["business", "navigation", "utilities"],
+"icons": [
+{
+"src": "./icon-192.png",
+"sizes": "192x192",
+"type": "image/png",
+"purpose": "any"
+},
+{
+"src": "./icon-512.png",
+"sizes": "512x512",
+"type": "image/png",
+"purpose": "any maskable"
+}
+]
+}
