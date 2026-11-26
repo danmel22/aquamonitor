@@ -27,9 +27,9 @@
     <!-- Карта Leaflet + кластеризация маркеров (с тайлами 2ГИС) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';"></script>
 
     <style>
         body {
@@ -37,7 +37,6 @@
             overscroll-behavior: none;
         }
 
-        /* Тонкая полоса прокрутки для списка */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -77,7 +76,6 @@
             transform: rotate(-45deg) scale(1.1);
             box-shadow: 0 6px 16px rgba(15, 23, 42, 0.45);
         }
-        /* Неповёрнутый контейнер внутри капли, чтобы уровень воды рос строго снизу вверх */
         .aqua-pin-upright {
             position: relative;
             width: 62px;
@@ -137,6 +135,40 @@
             letter-spacing: -0.03em;
         }
 
+        /* Бейдж госномера машины на маркере */
+        .aqua-trip-tag {
+            position: absolute;
+            top: -6px;
+            right: -8px;
+            z-index: 10;
+            padding: 1px 5px;
+            border-radius: 9999px;
+            font-size: 9px;
+            font-weight: 800;
+            color: #ffffff;
+            border: 1.5px solid #ffffff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+            line-height: 1.15;
+            pointer-events: none;
+        }
+
+        /* Маркер скважины (точка старта) */
+        .well-marker-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0f172a 0%, #0284c7 100%);
+            border: 3px solid #ffffff;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+            font-weight: 800;
+            line-height: 1;
+        }
+
         /* Кастомный стиль кластеров */
         .aqua-cluster-icon {
             background: transparent;
@@ -182,12 +214,10 @@
             box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
         }
 
-        /* Плавная анимация уровня воды в цилиндрическом баке */
         .tank-fill {
             transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
         }
 
-        /* Анимация вращения иконки обновления */
         @keyframes spin360 {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -196,7 +226,6 @@
             animation: spin360 0.8s linear infinite;
         }
 
-        /* Мобильная нижняя выдвижная панель (Bottom Sheet) для карты на весь экран */
         @media (max-width: 1023px) {
             #sidebarPanel {
                 position: fixed;
@@ -254,8 +283,14 @@
             </div>
         </div>
 
-        <!-- Правая группа кнопок: Обновить + Раскрывающееся Меню -->
+        <!-- Правая группа кнопок: Рейсы смены + Обновить + Меню -->
         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 relative">
+            <button id="btnTrips" onclick="openTripsModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-sky-600 hover:bg-sky-700 active:scale-95 text-white shadow-xs shadow-sky-600/20 transition" title="Планировщик рейсов по автомобилям">
+                <i data-lucide="truck" class="w-4 h-4"></i>
+                <span>Рейсы</span>
+                <span id="savedTripsCountBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] bg-white text-sky-700 font-extrabold">0</span>
+            </button>
+
             <button id="btnRefresh" onclick="manualRefresh()" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-slate-700 transition" title="Обновить данные из таблицы">
                 <i data-lucide="refresh-cw" id="refreshIcon" class="w-4 h-4 text-sky-600"></i>
                 <span class="hidden md:inline">Обновить</span>
@@ -263,18 +298,16 @@
 
             <button id="btnToggleMenu" onclick="toggleMobileMenu()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 transition" aria-expanded="false" aria-controls="collapsibleNavMenu" title="Открыть меню управления">
                 <i data-lucide="menu" class="w-4 h-4 text-slate-700"></i>
-                <span>Меню</span>
+                <span class="hidden sm:inline">Меню</span>
                 <i data-lucide="chevron-down" id="menuChevron" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200"></i>
             </button>
 
             <!-- РАСКРЫВАЮЩЕЕСЯ ВЫПАДАЮЩЕЕ МЕНЮ -->
             <div id="collapsibleNavMenu" class="hidden absolute right-0 top-full mt-2 w-64 sm:w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 space-y-1">
-                <!-- Время синхронизации на мобильном -->
                 <div class="px-2.5 py-1.5 text-[11px] text-slate-400 font-medium border-b border-slate-100 sm:hidden" id="mobileLastSyncText">
                     Синхронизация: ожидание...
                 </div>
 
-                <!-- Переключатель роли: Администратор / Водитель -->
                 <button id="btnRoleSwitch" onclick="handleRoleSwitchClick(); toggleMobileMenu(false);" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition">
                     <span class="flex items-center gap-2">
                         <i data-lucide="shield-check" id="roleIcon" class="w-4 h-4 text-emerald-600"></i>
@@ -283,7 +316,6 @@
                     <span id="roleLabel" class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px]">Администратор</span>
                 </button>
 
-                <!-- Переключатель группировки (кластеров) -->
                 <button id="btnClusterToggle" onclick="toggleClustering()" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border border-sky-200 bg-sky-50/70 hover:bg-sky-100 text-sky-900 transition">
                     <span class="flex items-center gap-2">
                         <i data-lucide="layers" class="w-4 h-4 text-sky-600"></i>
@@ -292,7 +324,6 @@
                     <span id="clusterLabel" class="text-[11px] font-bold text-sky-700">ВКЛ</span>
                 </button>
 
-                <!-- Кнопка показа/скрытия легенды на карте -->
                 <button id="btnLegendToggle" onclick="toggleMapLegend(); toggleMobileMenu(false);" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition">
                     <span class="flex items-center gap-2">
                         <i data-lucide="info" class="w-4 h-4 text-slate-500"></i>
@@ -303,25 +334,21 @@
 
                 <div class="admin-only-control border-t border-slate-100 my-1"></div>
 
-                <!-- Скопировать ссылку для водителя (только Администратор) -->
                 <button onclick="copyDriverLink(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition text-left">
                     <i data-lucide="share-2" class="w-4 h-4 text-sky-600 shrink-0"></i>
                     <span>Ссылка для водителя</span>
                 </button>
 
-                <!-- Смена PIN-кода (только Администратор) -->
                 <button onclick="openChangePinModal(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition text-left">
                     <i data-lucide="key-round" class="w-4 h-4 text-amber-600 shrink-0"></i>
                     <span>Изменить PIN-код</span>
                 </button>
 
-                <!-- Проверка строк без координат (только Администратор) -->
                 <button onclick="openDebugModal(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-purple-800 hover:bg-purple-50 transition text-left">
                     <i data-lucide="git-compare" class="w-4 h-4 text-purple-600 shrink-0"></i>
                     <span>Проверка координат</span>
                 </button>
 
-                <!-- Настройка Google Таблицы (только Администратор) -->
                 <button onclick="openSheetsModal(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white transition text-left mt-1">
                     <i data-lucide="table" class="w-4 h-4 shrink-0"></i>
                     <span>Настроить Google Таблицу</span>
@@ -333,7 +360,7 @@
     <!-- ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ -->
     <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
 
-        <!-- БОКОВАЯ ПАНЕЛЬ (Десктоп) / ВЫДВИЖНАЯ НИЖНЯЯ ПАНЕЛЬ (Мобильный) -->
+        <!-- БОКОВАЯ ПАНЕЛЬ / ВЫДВИЖНАЯ НИЖНЯЯ ПАНЕЛЬ -->
         <aside id="sidebarPanel" class="is-collapsed w-full lg:w-[410px] xl:w-[440px] bg-white lg:border-r border-slate-200 flex flex-col lg:h-full shrink-0 order-2 lg:order-1">
 
             <!-- Ручка раскрытия списка для мобильных устройств -->
@@ -355,11 +382,11 @@
             <!-- Сводные KPI-карточки -->
             <div class="p-3 border-b border-slate-100 bg-slate-50/70 shrink-0">
                 <div class="grid grid-cols-3 gap-2">
-                    <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                    <button onclick="setFilter('all')" class="bg-white hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 shadow-2xs text-left transition">
                         <div class="text-[11px] font-medium text-slate-500 truncate">Всего в работе</div>
                         <div id="statTotal" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-0.5">0</div>
-                    </div>
-                    <button onclick="setFilter('attention')" class="bg-white hover:bg-red-50/60 p-2.5 rounded-xl border border-red-200/80 shadow-2xs text-left transition">
+                    </button>
+                    <button onclick="setFilter('critical')" class="bg-white hover:bg-red-50/60 p-2.5 rounded-xl border border-red-200/80 shadow-2xs text-left transition">
                         <div class="text-[11px] font-medium text-red-600 truncate">Внимание</div>
                         <div id="statAttention" class="text-lg sm:text-xl font-extrabold text-red-600 mt-0.5">0</div>
                     </button>
@@ -378,7 +405,7 @@
                         id="searchInput"
                         type="text"
                         oninput="handleSearchInput(this.value)"
-                        placeholder="Поиск по номеру ID или адресу..."
+                        placeholder="Поиск по ID, адресу или направлению..."
                         class="w-full pl-9 pr-9 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-xs sm:text-sm transition"
                     >
                     <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100">
@@ -386,14 +413,10 @@
                     </button>
                 </div>
 
-                <!-- Фильтры: Все | Требуют внимания | Пустые | Низкий | Без связи | Исключения -->
+                <!-- Фильтры: Все | Пустые | Низкий | Без связи -->
                 <div id="filterButtonsContainer" class="flex items-center gap-1.5 flex-wrap">
                     <button data-filter="all" onclick="setFilter('all')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
                         <span>Все</span>
-                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
-                    </button>
-                    <button data-filter="attention" onclick="setFilter('attention')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
-                        <span>Требуют внимания</span>
                         <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
                     <button data-filter="critical" onclick="setFilter('critical')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
@@ -408,10 +431,6 @@
                         <span>Без связи</span>
                         <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
-                    <button data-filter="excluded" onclick="setFilter('excluded')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
-                        <span>Исключения</span>
-                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
-                    </button>
                 </div>
             </div>
 
@@ -421,9 +440,27 @@
             </div>
         </aside>
 
-        <!-- ИНТЕРАКТИВНАЯ КАРТА (на мобильном почти на весь экран) -->
+        <!-- ИНТЕРАКТИВНАЯ КАРТА -->
         <main class="flex-1 relative w-full h-full order-1 lg:order-2">
             <div id="map" class="w-full h-full z-10"></div>
+
+            <!-- Баннер активных рейсов смены на карте -->
+            <div id="activeTripBanner" class="hidden absolute top-14 left-3 right-3 sm:left-14 sm:right-auto z-20 bg-slate-900/95 backdrop-blur-xs text-white px-3.5 py-2.5 rounded-2xl shadow-xl border border-sky-500/40 flex items-center justify-between gap-3 max-w-lg">
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="navigation" class="w-3.5 h-3.5"></i>
+                        <span id="activeTripBannerTitle">Маршрут по дорогам от скважины</span>
+                    </div>
+                    <div id="activeTripBannerSub" class="text-xs font-semibold text-white truncate mt-0.5">Скважина: ул. Карла Маркса, 1</div>
+                    <div id="activeTripBannerRouteStatus" class="text-[10px] text-slate-300 mt-0.5 truncate">Расчёт дорожного маршрута...</div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button onclick="openTripsModal()" class="px-2.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold transition">Рейсы</button>
+                    <button onclick="clearTripOverlay()" class="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition" title="Скрыть линии маршрутов с карты">
+                        <i data-lucide="eye-off" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
 
             <!-- Кнопка центрирования всей сети -->
             <button onclick="fitAllMarkers()" class="absolute top-3 left-14 z-20 bg-white/95 backdrop-blur-xs hover:bg-white active:scale-95 text-slate-700 px-3 py-2 rounded-xl shadow-md border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Показать все водоматы на экране">
@@ -431,13 +468,13 @@
                 <span>Вся сеть</span>
             </button>
 
-            <!-- Кнопка быстрого вызова списка/фильтров на телефоне (над свёрнутой полосой) -->
+            <!-- Кнопка быстрого вызова списка/фильтров на телефоне -->
             <button id="btnMobileOpenList" onclick="toggleMobileSheet(true)" class="lg:hidden absolute bottom-20 right-3 z-20 bg-slate-900/90 backdrop-blur-xs hover:bg-slate-900 active:scale-95 text-white px-3.5 py-2.5 rounded-2xl shadow-lg text-xs font-bold flex items-center gap-1.5 transition">
                 <i data-lucide="list-filter" class="w-4 h-4 text-sky-400"></i>
                 <span>Фильтры</span>
             </button>
 
-            <!-- Легенда карты (отображается всегда, можно свернуть крестиком или через Меню) -->
+            <!-- Легенда карты -->
             <div id="mapLegendCard" class="absolute bottom-20 lg:bottom-5 left-3 z-20 bg-white/95 backdrop-blur-xs p-2.5 sm:p-3 rounded-2xl shadow-lg border border-slate-200/90 text-[11px] sm:text-xs space-y-1 sm:space-y-1.5 max-w-[195px] sm:min-w-[195px]">
                 <div class="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
                     <span class="font-bold text-slate-800">Обозначения</span>
@@ -465,12 +502,159 @@
                     <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-purple-600 border border-white shadow-xs shrink-0"></span>
                     <span class="text-slate-700 leading-tight">Без связи (&gt;60 мин)</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-500 border border-white shadow-xs shrink-0"></span>
-                    <span class="text-slate-700 leading-tight">Исключение</span>
-                </div>
             </div>
         </main>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ПЛАНИРОВЩИК СМЕНЫ ПО АВТОМОБИЛЯМ -->
+    <div id="tripsModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden">
+            <!-- Шапка модального окна -->
+            <div class="px-4 sm:px-5 py-3.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/70">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-extrabold text-slate-900 text-sm sm:text-base">Планировщик рейсов по автомобилям</h2>
+                        <p class="text-[11px] sm:text-xs text-slate-500">Старт: Скважина (ул. Карла Маркса, 1) • Заправка до 95% (от 350 л)</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('tripsModal')" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Прокручиваемое тело планировщика -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-4">
+
+                <!-- БЛОК СОХРАНЁННЫХ РЕЙСОВ ПО АВТОМОБИЛЯМ -->
+                <div class="bg-slate-900 text-white rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-sky-400"></i>
+                            <span class="text-xs font-extrabold uppercase tracking-wide">Сохранённые рейсы смены (<span id="savedShiftPlansCount">0</span>)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="copyAllShiftManifests()" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-semibold text-white transition flex items-center gap-1">
+                                <i data-lucide="copy" class="w-3 h-3"></i>
+                                <span>Скопировать смену</span>
+                            </button>
+                            <button onclick="clearAllSavedShiftPlans()" class="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-[11px] font-semibold text-red-200 border border-red-400/30 transition flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                <span>Очистить смену</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="savedShiftPlansContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <!-- Карточки сохранённых рейсов машин -->
+                    </div>
+                </div>
+
+                <!-- КОНСТРУКТОР РЕЙСА ДЛЯ ВЫБРАННОГО АВТОМОБИЛЯ -->
+                <div class="border border-slate-200 rounded-2xl p-3.5 sm:p-4 space-y-4 bg-white">
+                    <div class="flex items-center justify-between gap-2 flex-wrap border-b border-slate-100 pb-2.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span id="editorModeBadge" class="px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[11px] font-extrabold">Новый рейс автомобиля</span>
+                            <span id="selectedVehicleHeaderBadge" class="text-xs font-bold text-slate-700">Авто: 567 (4т)</span>
+                        </div>
+                        <button id="btnCancelEditTrip" onclick="resetTripDraftToNew()" class="hidden text-xs font-semibold text-slate-500 hover:text-slate-800">
+                            Отменить редактирование
+                        </button>
+                    </div>
+
+                    <!-- 1. Выбор конкретного автомобиля (госномер + тоннаж) и выездов со скважины -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between flex-wrap gap-1">
+                            <label class="text-xs font-extrabold text-slate-800 uppercase tracking-wide">1. Выберите автомобиль (госномер и тоннаж)</label>
+                            <span id="truckRuleHint" class="text-[11px] font-semibold text-sky-700">Общий литраж: 0 л</span>
+                        </div>
+
+                        <div id="truckSelectorGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                            <!-- Карточки машин (567 - 4т, 702 - 4т, 498 - 5т, 040 - 6т, 676 - 10т) -->
+                        </div>
+
+                        <!-- Ручное добавление / уменьшение количества выездов со скважины -->
+                        <div class="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div>
+                                <div class="text-xs font-extrabold text-slate-900">Количество выездов со скважины (Карла Маркса, 1)</div>
+                                <div class="text-[11px] text-slate-600">Каждый выезд стартует от скважины — точки группируются по объёму и близости</div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <button onclick="changeDraftRunsCount(-1)" class="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 font-extrabold text-slate-700 flex items-center justify-center transition" title="Убрать выезд">
+                                    <i data-lucide="minus" class="w-4 h-4"></i>
+                                </button>
+                                <span id="draftRunsCountDisplay" class="px-3 py-1 rounded-xl bg-white border border-sky-200 text-xs font-extrabold text-sky-900 min-w-[92px] text-center">2 выезда</span>
+                                <button onclick="changeDraftRunsCount(1)" class="px-3 h-8 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold flex items-center gap-1 transition shadow-2xs" title="Добавить ещё один выезд со скважины">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                    <span>Выезд</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Выбор направлений -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div>
+                                <div class="text-xs font-extrabold text-slate-800 uppercase tracking-wide">2. Направления (приоритет: уровень + AVR продаж + близость)</div>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Свободные киоски (&ge;350 л) ранжируются по остатку, расходу AVR (л/день) и расстоянию</p>
+                            </div>
+                            <button onclick="autoBuildTripDraft()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 transition flex items-center gap-1 shrink-0">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                <span>Пересчитать автоподбор</span>
+                            </button>
+                        </div>
+
+                        <div id="tripDirectionsContainer" class="flex items-center gap-1.5 flex-wrap pt-1">
+                            <!-- Чипсы направлений -->
+                        </div>
+                    </div>
+
+                    <!-- 3. Автоматическая группировка по выездам и список точек -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div class="text-xs font-extrabold text-slate-800 uppercase tracking-wide">3. Автогруппировка по выездам от скважины</div>
+                            <div class="flex items-center gap-2 text-xs flex-wrap">
+                                <span class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 font-bold border border-sky-200" id="tripStopsSummary">Выездов: 0 • Точек: 0</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200" id="tripVolumeSummary">0 / 0 л</span>
+                            </div>
+                        </div>
+
+                        <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                            <div id="tripTankProgressBar" class="h-full bg-sky-600 transition-all duration-300" style="width: 0%;"></div>
+                        </div>
+
+                        <!-- Сводка по каждому выезду со скважины + кнопка открытия маршрута в Яндекс.Картах -->
+                        <div id="tripRunsBreakdown" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <!-- Карточки выездов -->
+                        </div>
+
+                        <!-- Список киосков с расстоянием от скважины / предыдущей точки -->
+                        <div id="tripKiosksList" class="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                            <!-- Строки киосков -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Нижняя панель действий -->
+            <div class="px-4 sm:px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap shrink-0">
+                <button onclick="saveCurrentDraftToShift()" class="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span id="btnSaveTripLabel">Сохранить рейс и перейти к следующему</span>
+                </button>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="closeModal('tripsModal')" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 transition">Закрыть</button>
+                    <button onclick="showSavedShiftOnMap()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition flex items-center gap-1.5">
+                        <i data-lucide="route" class="w-4 h-4"></i>
+                        <span>Показать смену на карте</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- МОДАЛЬНОЕ ОКНО: НАСТРОЙКА GOOGLE ТАБЛИЦЫ -->
@@ -483,7 +667,7 @@
                     </div>
                     <div>
                         <h2 class="font-bold text-slate-900 text-base">Настройка Google Таблицы</h2>
-                        <p class="text-xs text-slate-500">Координаты (Широта/Долгота) и уровни загружаются автоматически</p>
+                        <p class="text-xs text-slate-500">Координаты, направления, допуск авто и уровни загружаются автоматически</p>
                     </div>
                 </div>
                 <button onclick="closeModal('sheetsModal')" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
@@ -514,7 +698,7 @@
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-[11px] text-slate-600 space-y-1 leading-relaxed">
-                    <p><b>Поддерживаемые колонки:</b> Номер (ID), Адрес, Уровень (литры или <code>DOWN/LOW/MID/HI/FULL</code>), Время обновления, Исключение, <b>Широта</b>, <b>Долгота</b>.</p>
+                    <p><b>Поддерживаемые колонки:</b> Номер (ID), Адрес, Уровень (литры или <code>DOWN/LOW/MID/HI/FULL</code>), Время обновления, Исключение, <b>Направление</b>, <b>Авто</b> (<code>4</code>, <code>4-5</code>, <code>4-5-6</code>, <code>Все</code>), <b>AVR</b> (средние продажи л/день), <b>Широта</b>, <b>Долгота</b>.</p>
                 </div>
             </div>
 
@@ -656,13 +840,33 @@
         const ADMIN_PIN_CODE = '1234';
         const OFFLINE_THRESHOLD_MINUTES = 60;
         const DEFAULT_TANK_CAPACITY = 2000;
+        const TARGET_FILL_RATIO = 0.95; // Заправка киоска до 95% от максимального значения
+        const MIN_REFILL_LITERS = 350;  // Не предлагать заправку киоска, если нужно долить < 350 л
         const LIST_BATCH_SIZE = 40;
+
+        /* Точные координаты скважины (точка старта всех выездов): г. Тольятти, ул. Карла Маркса, д. 1 */
+        const WELL_LOCATION = {
+            name: 'Скважина (Точка старта)',
+            address: 'г. Тольятти, ул. Карла Маркса, д. 1',
+            lat: 53.5233,
+            lng: 49.394703
+        };
+
+        /* Автопарк с привязкой к госномеру и тоннажу */
+        const FLEET_VEHICLES = [
+            { id: '567', plate: '567', tonnage: 4, tonnageLabel: '4т', label: '567 (4т)', capacityLiters: 4000, color: '#0284c7' },
+            { id: '702', plate: '702', tonnage: 4, tonnageLabel: '4т', label: '702 (4т)', capacityLiters: 4000, color: '#0891b2' },
+            { id: '498', plate: '498', tonnage: 5, tonnageLabel: '5т', label: '498 (5т)', capacityLiters: 5000, color: '#059669' },
+            { id: '040', plate: '040', tonnage: 6, tonnageLabel: '6т', label: '040 (6т)', capacityLiters: 6000, color: '#7c3aed' },
+            { id: '676', plate: '676', tonnage: 10, tonnageLabel: '10т', label: '676 (10т)', capacityLiters: 10000, color: '#e11d48' }
+        ];
 
         const STORAGE_KEYS = {
             SHEET_URL: 'aquamonitor_sheet_url_v2',
             REFRESH_SEC: 'aquamonitor_refresh_sec_v2',
             USER_ROLE: 'aquamonitor_user_role_v2',
-            ADMIN_PIN: 'aquamonitor_admin_pin_v2'
+            ADMIN_PIN: 'aquamonitor_admin_pin_v2',
+            SAVED_SHIFT_PLANS: 'aquamonitor_saved_shift_plans_v2'
         };
 
         const TEXT_LEVEL_PERCENT = {
@@ -721,20 +925,11 @@
                 badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
                 barColor: '#10b981',
                 priority: 5
-            },
-            excluded: {
-                label: 'Исключение',
-                shortLabel: 'Исключение',
-                color: '#64748b',
-                textColor: '#ffffff',
-                badgeBg: 'bg-slate-100 text-slate-600 border-slate-200',
-                barColor: '#64748b',
-                priority: 6
             }
         };
 
         /* =========================================================================
-           ОПРЕДЕЛЕНИЕ РОЛИ ПОЛЬЗОВАТЕЛЯ (URL ?role=driver или localStorage)
+           ОПРЕДЕЛЕНИЕ РОЛИ ПОЛЬЗОВАТЕЛЯ
            ========================================================================= */
         const urlParams = new URLSearchParams(window.location.search);
         const roleFromUrl = (urlParams.get('role') || '').toLowerCase();
@@ -742,6 +937,16 @@
         const initialRole = isRoleLockedByUrl
             ? 'driver'
             : (localStorage.getItem(STORAGE_KEYS.USER_ROLE) === 'driver' ? 'driver' : 'admin');
+
+        function loadSavedShiftPlansFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEYS.SAVED_SHIFT_PLANS);
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
 
         /* =========================================================================
            СОСТОЯНИЕ ПРИЛОЖЕНИЯ
@@ -764,13 +969,48 @@
             renderedListCount: 0,
             kiosks: [],
             filteredKiosks: [],
-            unmatchedSheetList: []
+            unmatchedSheetList: [],
+            // Сохранённые рейсы по автомобилям в текущей смене
+            savedShiftPlans: loadSavedShiftPlansFromStorage(),
+            // Черновик текущего настраиваемого рейса
+            tripPlanner: {
+                editingPlanId: null,
+                selectedVehicleId: '567',
+                runsCount: 2,
+                selectedDirections: [],
+                selectedKioskIds: [],
+                mapOverlayActive: false,
+                routeRenderToken: 0
+            }
         };
 
         let map = null;
         let clusterGroup = null;
         let plainMarkerGroup = null;
+        let tripPolylineLayer = null;
         let markersById = {};
+        const osrmRouteCache = {};
+
+        /* =========================================================================
+           ГЕОМЕТРИЯ И РАССТОЯНИЯ МЕЖДУ ТОЧКАМИ (Формула гаверсинуса)
+           ========================================================================= */
+        function calcDistanceKm(lat1, lon1, lat2, lon2) {
+            if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 999;
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function formatDistanceKm(km) {
+            if (km >= 900) return 'нет коорд.';
+            if (km < 1) return `${Math.round(km * 1000)} м`;
+            return `${km.toFixed(1)} км`;
+        }
 
         /* =========================================================================
            ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (Уведомления, PIN, Роли, Даты)
@@ -1055,48 +1295,53 @@
             map = L.map('map', {
                 center: [53.516, 49.30],
                 zoom: 12,
+                minZoom: 3,
+                maxZoom: 18,
                 zoomControl: true,
                 preferCanvas: true
             });
 
-            // Слой карты 2ГИС
-            const twoGisTiles = L.tileLayer('https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', {
-                subdomains: ['0', '1', '2', '3'],
+            L.tileLayer('https://tile2.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1.1', {
                 maxZoom: 18,
+                subdomains: ['0', '1', '2', '3'],
                 attribution: '&copy; 2ГИС'
-            });
-            twoGisTiles.addTo(map);
-
-            // Группа кластеризации маркеров
-            clusterGroup = L.markerClusterGroup({
-                maxClusterRadius: 48,
-                spiderfyOnMaxZoom: true,
-                showCoverageOnHover: false,
-                zoomToBoundsOnClick: true,
-                iconCreateFunction: function (cluster) {
-                    const childMarkers = cluster.getAllChildMarkers();
-                    const count = childMarkers.length;
-                    let hasCritical = false;
-                    let hasAttention = false;
-
-                    for (let i = 0; i < childMarkers.length; i++) {
-                        const st = childMarkers[i].options.kioskStatus;
-                        if (st === 'critical') hasCritical = true;
-                        else if (st === 'low' || st === 'offline') hasAttention = true;
-                    }
-
-                    const bg = hasCritical ? '#ef4444' : (hasAttention ? '#ea9999' : '#0284c7');
-                    return L.divIcon({
-                        html: `<div class="aqua-cluster-badge" style="background:${bg}">${count}</div>`,
-                        className: 'aqua-cluster-icon',
-                        iconSize: [42, 42]
-                    });
-                }
-            });
+            }).addTo(map);
 
             plainMarkerGroup = L.layerGroup();
+            tripPolylineLayer = L.layerGroup().addTo(map);
 
-            if (state.clusteringEnabled) {
+            if (typeof L.markerClusterGroup === 'function') {
+                clusterGroup = L.markerClusterGroup({
+                    maxClusterRadius: 48,
+                    spiderfyOnMaxZoom: true,
+                    showCoverageOnHover: false,
+                    zoomToBoundsOnClick: true,
+                    iconCreateFunction: function (cluster) {
+                        const childMarkers = cluster.getAllChildMarkers();
+                        const count = childMarkers.length;
+                        let hasCritical = false;
+                        let hasAttention = false;
+
+                        for (let i = 0; i < childMarkers.length; i++) {
+                            const st = childMarkers[i].options.kioskStatus;
+                            if (st === 'critical') hasCritical = true;
+                            else if (st === 'low' || st === 'offline') hasAttention = true;
+                        }
+
+                        const bg = hasCritical ? '#ef4444' : (hasAttention ? '#ea9999' : '#0284c7');
+                        return L.divIcon({
+                            html: `<div class="aqua-cluster-badge" style="background:${bg}">${count}</div>`,
+                            className: 'aqua-cluster-icon',
+                            iconSize: [42, 42]
+                        });
+                    }
+                });
+            } else {
+                clusterGroup = null;
+                state.clusteringEnabled = false;
+            }
+
+            if (state.clusteringEnabled && clusterGroup) {
                 map.addLayer(clusterGroup);
             } else {
                 map.addLayer(plainMarkerGroup);
@@ -1104,6 +1349,10 @@
         }
 
         function toggleClustering() {
+            if (!clusterGroup && typeof L.markerClusterGroup !== 'function') {
+                showToast('Плагин кластеризации недоступен в текущей сети', 'warning');
+                return;
+            }
             state.clusteringEnabled = !state.clusteringEnabled;
             const label = document.getElementById('clusterLabel');
             const btn = document.getElementById('btnClusterToggle');
@@ -1117,11 +1366,11 @@
             }
 
             if (map) {
-                if (state.clusteringEnabled) {
+                if (state.clusteringEnabled && clusterGroup) {
                     map.removeLayer(plainMarkerGroup);
                     map.addLayer(clusterGroup);
                 } else {
-                    map.removeLayer(clusterGroup);
+                    if (clusterGroup) map.removeLayer(clusterGroup);
                     map.addLayer(plainMarkerGroup);
                 }
             }
@@ -1132,7 +1381,7 @@
             if (!map) return;
             const sourceList = state.filteredKiosks.length > 0
                 ? state.filteredKiosks
-                : state.kiosks.filter(k => !k.isExcluded && k.status !== 'excluded');
+                : state.kiosks;
 
             const validCoords = sourceList
                 .filter(k => k.hasValidCoords)
@@ -1145,14 +1394,14 @@
         }
 
         /* =========================================================================
-           НАВИГАЦИЯ ДЛЯ ANDROID APK (Яндекс.Навигатор и 2ГИС с авто-резервом)
+           НАВИГАЦИЯ ДЛЯ ANDROID APK И МНОГОТОЧЕЧНЫЙ МАРШРУТ ОТ СКВАЖИНЫ
            ========================================================================= */
         function openYandexRoute(lat, lng) {
-            const webUrl = `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=auto`;
+            const webUrl = `https://yandex.ru/maps/?rtext=${WELL_LOCATION.lat},${WELL_LOCATION.lng}~${lat},${lng}&rtt=auto`;
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
             if (isMobile) {
-                const appUrl = `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}`;
+                const appUrl = `yandexnavi://build_route_on_map?lat_from=${WELL_LOCATION.lat}&lon_from=${WELL_LOCATION.lng}&lat_to=${lat}&lon_to=${lng}`;
                 const startedAt = Date.now();
                 window.location.href = appUrl;
                 setTimeout(() => {
@@ -1166,11 +1415,11 @@
         }
 
         function open2GisRoute(lat, lng) {
-            const webUrl = `https://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`;
+            const webUrl = `https://2gis.ru/routeSearch/rsType/car/from/${WELL_LOCATION.lng},${WELL_LOCATION.lat}/to/${lng},${lat}`;
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
             if (isMobile) {
-                const appUrl = `dgis://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`;
+                const appUrl = `dgis://2gis.ru/routeSearch/rsType/car/from/${WELL_LOCATION.lng},${WELL_LOCATION.lat}/to/${lng},${lat}`;
                 const startedAt = Date.now();
                 window.location.href = appUrl;
                 setTimeout(() => {
@@ -1181,6 +1430,70 @@
             } else {
                 window.open(webUrl, '_blank', 'noopener');
             }
+        }
+
+        function openMultiStopRunInYandex(kioskIdsCsv) {
+            const ids = String(kioskIdsCsv || '').split(',').filter(Boolean);
+            const points = [`${WELL_LOCATION.lat},${WELL_LOCATION.lng}`];
+            ids.forEach(id => {
+                const k = state.kiosks.find(item => item.id === id);
+                if (k && k.hasValidCoords) {
+                    points.push(`${k.lat},${k.lng}`);
+                }
+            });
+            if (points.length < 2) return;
+            const url = `https://yandex.ru/maps/?rtext=${points.join('~')}&rtt=auto`;
+            window.open(url, '_blank', 'noopener');
+        }
+
+        /**
+         * Строит реальный автомобильный маршрут по дорогам (через OSRM API)
+         * от скважины (Карла Маркса, 1) через все точки выезда.
+         */
+        async function fetchRoadRouteGeometry(waypointsLatLng) {
+            if (!Array.isArray(waypointsLatLng) || waypointsLatLng.length < 2) {
+                return { coords: waypointsLatLng || [], distanceKm: 0, isRoad: false };
+            }
+
+            const cacheKey = waypointsLatLng.map(p => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join(';');
+            if (osrmRouteCache[cacheKey]) {
+                return osrmRouteCache[cacheKey];
+            }
+
+            // OSRM принимает координаты в формате lng,lat
+            const coordsParam = waypointsLatLng.map(p => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(';');
+            const url = `https://router.project-osrm.org/route/v1/driving/${coordsParam}?overview=full&geometries=geojson`;
+
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 6500);
+                const resp = await fetch(url, { signal: controller.signal });
+                clearTimeout(timer);
+
+                if (!resp.ok) throw new Error(`OSRM HTTP ${resp.status}`);
+                const data = await resp.json();
+
+                if (data && data.code === 'Ok' && data.routes && data.routes[0] && data.routes[0].geometry) {
+                    const geoCoords = data.routes[0].geometry.coordinates || [];
+                    const latLngs = geoCoords.map(pair => [pair[1], pair[0]]);
+                    const distanceKm = (data.routes[0].distance || 0) / 1000;
+                    const result = { coords: latLngs, distanceKm, isRoad: true };
+                    osrmRouteCache[cacheKey] = result;
+                    return result;
+                }
+            } catch (e) {
+                console.warn('Не удалось получить дорожный граф OSRM, используется резервная линия:', e);
+            }
+
+            // Резервный расчёт прямой линии, если дорожный сервис недоступен
+            let fallbackDist = 0;
+            for (let i = 1; i < waypointsLatLng.length; i++) {
+                fallbackDist += calcDistanceKm(
+                    waypointsLatLng[i - 1][0], waypointsLatLng[i - 1][1],
+                    waypointsLatLng[i][0], waypointsLatLng[i][1]
+                );
+            }
+            return { coords: waypointsLatLng, distanceKm: fallbackDist, isRoad: false };
         }
 
         /* =========================================================================
@@ -1256,19 +1569,65 @@
         }
 
         function parseExclusionFlag(raw) {
-            const val = String(raw || '').trim().toLowerCase();
-            if (!val) return false;
-            return ['да', 'yes', 'true', '1', 'x', 'х', 'исключение', 'исключен', 'исключён', 'скрыть', 'ремонт', 'выкл', 'откл'].includes(val)
-                || val.includes('исключ')
-                || val.includes('ремонт')
-                || val.includes('демонтаж');
+            const val = String(raw || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim().toLowerCase();
+            if (!val || val === '0' || val === '0.0' || val === 'нет' || val === 'false' || val === 'no' || val === '-') {
+                return false;
+            }
+            if (
+                val === '1' ||
+                val === '1.0' ||
+                val === '1,0' ||
+                ['да', 'yes', 'true', 'x', 'х', 'v', '✓', '✔', 'исключение', 'исключен', 'исключён', 'скрыть', 'ремонт', 'выкл', 'откл', 'стоп'].includes(val)
+            ) {
+                return true;
+            }
+            return val.includes('исключ') || val.includes('ремонт') || val.includes('демонтаж');
+        }
+
+        function isRowExcluded(row, exclColIndices) {
+            for (let j = 0; j < exclColIndices.length; j++) {
+                const colIdx = exclColIndices[j];
+                if (colIdx >= 0 && colIdx < row.length && parseExclusionFlag(row[colIdx])) {
+                    return true;
+                }
+            }
+            for (let c = 0; c < row.length; c++) {
+                const cellVal = String(row[c] || '').trim().toLowerCase();
+                if (!cellVal) continue;
+                if (cellVal.includes('исключ') || cellVal.includes('демонтаж')) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function parseTruckAccess(rawAuto) {
+            const str = String(rawAuto || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+            const lower = str.toLowerCase();
+
+            if (!lower || lower.includes('все') || lower.includes('all') || lower.includes('10')) {
+                return {
+                    label: str || 'Все',
+                    allowedTonnages: [4, 5, 6, 10]
+                };
+            }
+
+            const allowed = [];
+            if (/\b4\b/.test(lower) || lower.includes('4')) allowed.push(4);
+            if (/\b5\b/.test(lower) || lower.includes('5')) allowed.push(5);
+            if (/\b6\b/.test(lower) || lower.includes('6')) allowed.push(6);
+            if (/\b10\b/.test(lower)) allowed.push(10);
+
+            return {
+                label: str,
+                allowedTonnages: allowed.length > 0 ? allowed : [4, 5, 6, 10]
+            };
         }
 
         function parseWaterLevel(rawLevel, capacity) {
             const str = String(rawLevel || '').trim();
             const upper = str.toUpperCase();
 
-            // 1. Текстовые коды (DOWN, LOW, MID, HI, FULL)
             const matchedCode = Object.keys(TEXT_LEVEL_PERCENT).find(code => upper === code || upper.includes(code));
             if (matchedCode) {
                 const displayCode = matchedCode === 'MEDIUM' ? 'MID' : (matchedCode === 'HIGH' ? 'HI' : (matchedCode === 'EMPTY' ? 'DOWN' : matchedCode));
@@ -1284,7 +1643,6 @@
                 };
             }
 
-            // 2. Процент (если явно указан знак %)
             if (str.includes('%')) {
                 const num = parseFloat(str.replace(',', '.').replace(/[^\d.-]/g, ''));
                 if (!isNaN(num)) {
@@ -1301,7 +1659,6 @@
                 }
             }
 
-            // 3. Числовое значение в литрах
             const numeric = parseFloat(str.replace(',', '.').replace(/[^\d.-]/g, ''));
             if (!isNaN(numeric)) {
                 const liters = Math.max(0, Math.round(numeric));
@@ -1382,7 +1739,6 @@
         }
 
         function evaluateKioskState(kiosk) {
-            if (kiosk.isExcluded) return 'excluded';
             if (kiosk.timeInfo.isOffline) return 'offline';
 
             const lvl = kiosk.levelInfo;
@@ -1407,11 +1763,36 @@
             return parseFloat(cleaned);
         }
 
+        function calculateRefillNeedLiters(capacity, currentLiters) {
+            const targetLiters = Math.round(capacity * TARGET_FILL_RATIO);
+            return Math.max(0, targetLiters - currentLiters);
+        }
+
+        function parseAvrDailyLiters(rawAvr) {
+            if (rawAvr === null || rawAvr === undefined) return 0;
+            const cleaned = String(rawAvr).trim().replace(',', '.').replace(/[^\d.-]/g, '');
+            const val = parseFloat(cleaned);
+            return (!isNaN(val) && val > 0) ? Math.round(val) : 0;
+        }
+
+        /**
+         * Оценивает индекс срочности заправки киоска (чем МЕНЬШЕ значение, тем ВЫШЕ приоритет):
+         * учитывает остаток воды (%), средние дневные продажи AVR (л/день) и запас хода в днях.
+         */
+        function calcKioskUrgencyIndex(kiosk) {
+            const pct = kiosk.levelInfo ? kiosk.levelInfo.percent : 50;
+            const avr = kiosk.avrDailyLiters || 0;
+            const daysLeft = avr > 0 ? Math.min(10, (kiosk.levelInfo.liters / avr)) : 4.0;
+            // Высокий AVR и малый запас хода уменьшают индекс (поднимают приоритет в очереди)
+            const avrBonus = Math.min(18, avr / 35);
+            return pct * 0.42 + daysLeft * 4.5 - avrBonus;
+        }
+
         function parseGoogleSheetCsv(csvText) {
             const rows = parseCsvText(csvText);
             if (rows.length < 2) return { kiosks: [], unmatched: [] };
 
-            const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
+            const headers = rows[0].map(h => String(h || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim().toLowerCase());
             const findCol = (keywords) => headers.findIndex(h => keywords.some(k => h.includes(k)));
 
             let idxId = findCol(['номер', 'id', '№', 'метка', 'киоск', 'код', 'аппарат']);
@@ -1419,13 +1800,45 @@
             let idxLevel = findCol(['уровень', 'остаток', 'вода', 'литр', 'объем', 'объём', 'заполн', 'level']);
             let idxCap = findCol(['емкость', 'ёмкость', 'макс', 'бак', 'capacity']);
             let idxTime = findCol(['время', 'дата', 'обновл', 'связь', 'последн', 'updated', 'time']);
-            let idxExcl = findCol(['исключ', 'скрыт', 'ремонт', 'выкл', 'откл', 'ignore', 'exclude', 'статус искл']);
+            let idxDir = findCol(['направлен', 'маршрут', 'район', 'зона', 'ветка', 'сектор', 'direction', 'route']);
+            let idxAuto = findCol(['авто', 'машин', 'тоннаж', 'транспорт', 'допуск', 'truck', 'car']);
+            let idxAvr = findCol(['avr', 'средн', 'продаж', 'расход', 'суточ', 'сбыт', 'avg', 'sales']);
             let idxLat = findCol(['широта', 'lat', 'latitude']);
             let idxLng = findCol(['долгота', 'lng', 'lon', 'longitude']);
 
             if (idxId === -1) idxId = 0;
             if (idxAddr === -1) idxAddr = 1;
             if (idxLevel === -1) idxLevel = 2;
+
+            const exclKeywords = ['исключ', 'скрыт', 'ремонт', 'выкл', 'откл', 'не раб', 'блок', 'стоп', 'ignore', 'exclude', 'off', 'disable'];
+            const exclColSet = new Set();
+            headers.forEach((h, colIndex) => {
+                if (exclKeywords.some(k => h.includes(k))) {
+                    exclColSet.add(colIndex);
+                }
+            });
+
+            const knownDataCols = new Set([idxId, idxAddr, idxLevel, idxCap, idxTime, idxDir, idxAuto, idxAvr, idxLat, idxLng].filter(i => i >= 0));
+            const maxCols = rows.reduce((m, r) => Math.max(m, r.length), headers.length);
+            for (let colIndex = 0; colIndex < maxCols; colIndex++) {
+                if (knownDataCols.has(colIndex) || exclColSet.has(colIndex)) continue;
+                let hasFlagValues = false;
+                let hasNonFlagValues = false;
+                for (let r = 1; r < rows.length; r++) {
+                    const cell = String(rows[r][colIndex] || '').trim().toLowerCase();
+                    if (!cell) continue;
+                    if (['1', '1.0', '0', '0.0', 'да', 'нет', 'true', 'false', 'x', 'х'].includes(cell) || cell.includes('исключ')) {
+                        hasFlagValues = true;
+                    } else {
+                        hasNonFlagValues = true;
+                        break;
+                    }
+                }
+                if (hasFlagValues && !hasNonFlagValues) {
+                    exclColSet.add(colIndex);
+                }
+            }
+            const exclColIndices = Array.from(exclColSet);
 
             const kiosks = [];
             const unmatched = [];
@@ -1437,13 +1850,17 @@
                 const rawLevel = idxLevel >= 0 ? row[idxLevel] : '';
 
                 if (!id && !address) continue;
+                if (isRowExcluded(row, exclColIndices)) continue;
 
                 const capacityRaw = idxCap >= 0 ? parseFloat(String(row[idxCap] || '').replace(',', '.')) : NaN;
                 const capacity = (!isNaN(capacityRaw) && capacityRaw > 0) ? capacityRaw : DEFAULT_TANK_CAPACITY;
 
                 const levelInfo = parseWaterLevel(rawLevel, capacity);
                 const timeInfo = evaluateUpdateTime(idxTime >= 0 ? row[idxTime] : '');
-                const isExcluded = idxExcl >= 0 ? parseExclusionFlag(row[idxExcl]) : false;
+                const direction = (idxDir >= 0 ? String(row[idxDir] || '').trim() : '') || 'Без направления';
+                const truckAccess = parseTruckAccess(idxAuto >= 0 ? row[idxAuto] : '');
+                const avrDailyLiters = idxAvr >= 0 ? parseAvrDailyLiters(row[idxAvr]) : 0;
+                const refillNeedLiters = calculateRefillNeedLiters(capacity, levelInfo.liters);
 
                 let lat = idxLat >= 0 ? parseCoordinateValue(row[idxLat]) : NaN;
                 let lng = idxLng >= 0 ? parseCoordinateValue(row[idxLng]) : NaN;
@@ -1464,7 +1881,10 @@
                     capacity,
                     levelInfo,
                     timeInfo,
-                    isExcluded,
+                    direction,
+                    truckAccess,
+                    avrDailyLiters,
+                    refillNeedLiters,
                     lat: hasValidCoords ? lat : null,
                     lng: hasValidCoords ? lng : null,
                     hasValidCoords
@@ -1472,7 +1892,7 @@
                 kiosk.status = evaluateKioskState(kiosk);
 
                 kiosks.push(kiosk);
-                if (!hasValidCoords && !isExcluded) {
+                if (!hasValidCoords) {
                     unmatched.push({
                         id: kiosk.id,
                         address: kiosk.address,
@@ -1487,26 +1907,30 @@
 
         function buildDynamicDemoKiosks() {
             const samples = [
-                { id: '311', address: 'Революционная 1000 Мелочей', rawLevel: '1820', minAgo: 8, lat: 53.52437, lng: 49.27436, excl: false },
-                { id: '310', address: 'Юбилейная 1000 Мелочей', rawLevel: 'LOW', minAgo: 12, lat: 53.50170, lng: 49.27559, excl: false },
-                { id: '104', address: 'ул. Дзержинского, 42', rawLevel: 'DOWN', minAgo: 5, lat: 53.53120, lng: 49.28810, excl: false },
-                { id: '215', address: 'пр-т Степана Разина, 60', rawLevel: 'MID', minAgo: 18, lat: 53.50940, lng: 49.26120, excl: false },
-                { id: '118', address: 'ул. Автостроителей, 84А', rawLevel: '480', minAgo: 95, lat: 53.54180, lng: 49.30140, excl: false },
-                { id: '207', address: 'ул. 70 лет Октября, 38', rawLevel: 'FULL', minAgo: 4, lat: 53.53760, lng: 49.31250, excl: false },
-                { id: '142', address: 'ул. Ворошилова, 24', rawLevel: '140', minAgo: 14, lat: 53.52790, lng: 49.29900, excl: false },
-                { id: '305', address: 'б-р Приморский, 12', rawLevel: '1250', minAgo: 10, lat: 53.49610, lng: 49.28950, excl: true }
+                { id: '311', address: 'Революционная 1000 Мелочей', rawLevel: '1820', minAgo: 8, dir: 'Центр', auto: 'Все', avr: 420, lat: 53.52437, lng: 49.27436 },
+                { id: '310', address: 'Юбилейная 1000 Мелочей', rawLevel: 'LOW', minAgo: 12, dir: 'Юг', auto: '4-5-6', avr: 510, lat: 53.50170, lng: 49.27559 },
+                { id: '104', address: 'ул. Дзержинского, 42', rawLevel: 'DOWN', minAgo: 5, dir: 'Центр', auto: '4-5', avr: 640, lat: 53.53120, lng: 49.28810 },
+                { id: '215', address: 'пр-т Степана Разина, 60', rawLevel: 'MID', minAgo: 18, dir: 'Юг', auto: 'Все', avr: 380, lat: 53.50940, lng: 49.26120 },
+                { id: '118', address: 'ул. Автостроителей, 84А', rawLevel: '480', minAgo: 95, dir: 'Север', auto: '4', avr: 290, lat: 53.54180, lng: 49.30140 },
+                { id: '207', address: 'ул. 70 лет Октября, 38', rawLevel: 'FULL', minAgo: 4, dir: 'Север', auto: 'Все', avr: 450, lat: 53.53760, lng: 49.31250 },
+                { id: '142', address: 'ул. Ворошилова, 24', rawLevel: '140', minAgo: 14, dir: 'Центр', auto: '4-5-6', avr: 580, lat: 53.52790, lng: 49.29900 }
             ];
 
             return samples.map(s => {
                 const levelInfo = parseWaterLevel(s.rawLevel, DEFAULT_TANK_CAPACITY);
                 const timeInfo = evaluateUpdateTime(formatOffsetDateTime(s.minAgo));
+                const truckAccess = parseTruckAccess(s.auto);
+                const refillNeedLiters = calculateRefillNeedLiters(DEFAULT_TANK_CAPACITY, levelInfo.liters);
                 const kiosk = {
                     id: s.id,
                     address: s.address,
                     capacity: DEFAULT_TANK_CAPACITY,
                     levelInfo,
                     timeInfo,
-                    isExcluded: s.excl,
+                    direction: s.dir,
+                    truckAccess,
+                    avrDailyLiters: s.avr || 0,
+                    refillNeedLiters,
                     lat: s.lat,
                     lng: s.lng,
                     hasValidCoords: true
@@ -1542,7 +1966,7 @@
                 state.kiosks = parsed.kiosks;
                 state.unmatchedSheetList = parsed.unmatched;
 
-                const activeCount = parsed.kiosks.filter(k => !k.isExcluded && k.status !== 'excluded').length;
+                const activeCount = parsed.kiosks.length;
                 updateSourceBadge(true, activeCount);
                 updateLastSyncTime();
                 rebuildView();
@@ -1556,8 +1980,7 @@
                     state.isDemoMode = true;
                     state.kiosks = buildDynamicDemoKiosks();
                     state.unmatchedSheetList = [];
-                    const activeCount = state.kiosks.filter(k => !k.isExcluded && k.status !== 'excluded').length;
-                    updateSourceBadge(false, activeCount);
+                    updateSourceBadge(false, state.kiosks.length);
                     rebuildView();
                 }
                 if (!isSilent) {
@@ -1585,26 +2008,909 @@
         }
 
         /* =========================================================================
-           ФИЛЬТРАЦИЯ, СТАТИСИКА И ОТРИСОВКА КАРТЫ + СПИСКА
+           ПЛАНИРОВЩИК СМЕНЫ ПО АВТОМОБИЛЯМ (Старт от скважины: Карла Маркса, 1)
+           ========================================================================= */
+        function persistSavedShiftPlans() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.SAVED_SHIFT_PLANS, JSON.stringify(state.savedShiftPlans));
+            } catch (e) {}
+            updateSavedShiftHeaderBadge();
+        }
+
+        function updateSavedShiftHeaderBadge() {
+            const badge = document.getElementById('savedTripsCountBadge');
+            const count = state.savedShiftPlans.length;
+            if (badge) {
+                badge.classList.toggle('hidden', count === 0);
+                badge.textContent = String(count);
+            }
+        }
+
+        function getVehicleConfig(vehicleId) {
+            return FLEET_VEHICLES.find(v => v.id === vehicleId) || FLEET_VEHICLES[0];
+        }
+
+        function isKioskAccessibleForVehicle(kiosk, vehicle) {
+            if (!kiosk || !kiosk.truckAccess || !Array.isArray(kiosk.truckAccess.allowedTonnages)) {
+                return true;
+            }
+            return kiosk.truckAccess.allowedTonnages.includes(vehicle.tonnage);
+        }
+
+        function isKioskEligibleForRefill(kiosk) {
+            return kiosk && kiosk.refillNeedLiters >= MIN_REFILL_LITERS;
+        }
+
+        function getAssignedKioskIdsInOtherPlans() {
+            const set = new Set();
+            const editingId = state.tripPlanner.editingPlanId;
+            state.savedShiftPlans.forEach(plan => {
+                if (editingId && plan.id === editingId) return;
+                (plan.kioskIds || []).forEach(id => set.add(id));
+            });
+            return set;
+        }
+
+        function openTripsModal() {
+            toggleMobileMenu(false);
+            if (!state.tripPlanner.selectedKioskIds.length || !state.tripPlanner.selectedDirections.length) {
+                autoBuildTripDraft();
+            } else {
+                renderTripsModalUI();
+            }
+            openModal('tripsModal');
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        function selectVehicleForTrip(vehicleId) {
+            state.tripPlanner.selectedVehicleId = vehicleId;
+            autoBuildTripDraft();
+        }
+
+        function changeDraftRunsCount(delta) {
+            const next = Math.max(1, Math.min(12, state.tripPlanner.runsCount + delta));
+            if (next === state.tripPlanner.runsCount) return;
+            state.tripPlanner.runsCount = next;
+            autoSelectStopsByProximityAndLevel();
+            renderTripsModalUI();
+        }
+
+        /**
+         * Упорядочивает киоски с учётом выезда от скважины (Карла Маркса, 1)
+         * и цепочки ближайших соседей с приоритетом низкого уровня воды.
+         */
+        function sortKiosksByNearestNeighbor(kiosksList) {
+            if (kiosksList.length <= 1) return [...kiosksList];
+
+            const remaining = [...kiosksList];
+            const ordered = [];
+            let curLat = WELL_LOCATION.lat;
+            let curLng = WELL_LOCATION.lng;
+
+            while (remaining.length > 0) {
+                let bestIdx = 0;
+                let bestScore = Infinity;
+
+                for (let i = 0; i < remaining.length; i++) {
+                    const cand = remaining[i];
+                    const distKm = calcDistanceKm(curLat, curLng, cand.lat, cand.lng);
+                    const score = distKm * 3.0 + calcKioskUrgencyIndex(cand) * 0.08;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestIdx = i;
+                    }
+                }
+                const picked = remaining.splice(bestIdx, 1)[0];
+                ordered.push(picked);
+                if (picked.hasValidCoords) {
+                    curLat = picked.lat;
+                    curLng = picked.lng;
+                }
+            }
+
+            return ordered;
+        }
+
+        function groupStopsIntoRunsAutomatically(selectedStops, truckCapacityLiters, runsCount) {
+            const geographicallyOrdered = sortKiosksByNearestNeighbor(selectedStops);
+            const runs = [];
+            let currentRun = { runNumber: 1, stops: [], usedLiters: 0, totalDistanceKm: 0 };
+
+            geographicallyOrdered.forEach(k => {
+                const need = k.refillNeedLiters;
+                if (currentRun.stops.length > 0 && (currentRun.usedLiters + need > truckCapacityLiters) && runs.length + 1 < runsCount) {
+                    runs.push(currentRun);
+                    currentRun = { runNumber: runs.length + 1, stops: [], usedLiters: 0, totalDistanceKm: 0 };
+                }
+
+                // Считаем дистанцию от скважины (для 1-й точки выезда) либо от предыдущего киоска
+                const prevLat = currentRun.stops.length === 0 ? WELL_LOCATION.lat : currentRun.stops[currentRun.stops.length - 1].lat;
+                const prevLng = currentRun.stops.length === 0 ? WELL_LOCATION.lng : currentRun.stops[currentRun.stops.length - 1].lng;
+                const legDist = calcDistanceKm(prevLat, prevLng, k.lat, k.lng);
+                if (legDist < 900) currentRun.totalDistanceKm += legDist;
+
+                currentRun.stops.push(k);
+                currentRun.usedLiters += need;
+            });
+
+            if (currentRun.stops.length > 0) {
+                runs.push(currentRun);
+            }
+
+            return runs;
+        }
+
+        function autoBuildTripDraft() {
+            const vehicle = getVehicleConfig(state.tripPlanner.selectedVehicleId);
+            const totalAvailableVolume = vehicle.capacityLiters * state.tripPlanner.runsCount;
+            const busyElsewhere = getAssignedKioskIdsInOtherPlans();
+
+            const freeEligibleKiosks = state.kiosks.filter(k =>
+                !busyElsewhere.has(k.id) &&
+                isKioskAccessibleForVehicle(k, vehicle) &&
+                isKioskEligibleForRefill(k)
+            );
+
+            const dirStatsMap = {};
+            freeEligibleKiosks.forEach(k => {
+                const dir = k.direction || 'Без направления';
+                if (!dirStatsMap[dir]) {
+                    dirStatsMap[dir] = {
+                        name: dir,
+                        kiosks: [],
+                        criticalCount: 0,
+                        lowCount: 0,
+                        totalNeedLiters: 0,
+                        totalAvrLiters: 0,
+                        sumUrgency: 0
+                    };
+                }
+                const entry = dirStatsMap[dir];
+                entry.kiosks.push(k);
+                if (k.status === 'critical') entry.criticalCount++;
+                if (k.status === 'low') entry.lowCount++;
+                entry.totalNeedLiters += k.refillNeedLiters;
+                entry.totalAvrLiters += (k.avrDailyLiters || 0);
+                entry.sumUrgency += calcKioskUrgencyIndex(k);
+            });
+
+            const rankedDirections = Object.values(dirStatsMap).sort((a, b) => {
+                if (b.criticalCount !== a.criticalCount) return b.criticalCount - a.criticalCount;
+                const urgA = a.sumUrgency / Math.max(1, a.kiosks.length);
+                const urgB = b.sumUrgency / Math.max(1, b.kiosks.length);
+                if (Math.abs(urgA - urgB) > 1.5) return urgA - urgB;
+                if (b.totalAvrLiters !== a.totalAvrLiters) return b.totalAvrLiters - a.totalAvrLiters;
+                return b.totalNeedLiters - a.totalNeedLiters;
+            });
+
+            const chosenDirs = [];
+            let accumulatedLiters = 0;
+
+            for (let i = 0; i < rankedDirections.length; i++) {
+                const d = rankedDirections[i];
+                chosenDirs.push(d.name);
+                accumulatedLiters += d.totalNeedLiters;
+                if (accumulatedLiters >= totalAvailableVolume) break;
+            }
+
+            state.tripPlanner.selectedDirections = chosenDirs;
+            autoSelectStopsByProximityAndLevel();
+            renderTripsModalUI();
+        }
+
+        function autoSelectStopsByProximityAndLevel() {
+            const vehicle = getVehicleConfig(state.tripPlanner.selectedVehicleId);
+            const runsCount = state.tripPlanner.runsCount;
+            const selectedDirSet = new Set(state.tripPlanner.selectedDirections);
+            const busyElsewhere = getAssignedKioskIdsInOtherPlans();
+
+            const pool = state.kiosks.filter(k =>
+                !busyElsewhere.has(k.id) &&
+                selectedDirSet.has(k.direction || 'Без направления') &&
+                isKioskAccessibleForVehicle(k, vehicle) &&
+                isKioskEligibleForRefill(k)
+            );
+
+            if (pool.length === 0) {
+                state.tripPlanner.selectedKioskIds = [];
+                return;
+            }
+
+            const remaining = [...pool];
+            const pickedIds = [];
+            let currentRunIndex = 0;
+            let currentTankRemaining = vehicle.capacityLiters;
+            let anchorLat = WELL_LOCATION.lat;
+            let anchorLng = WELL_LOCATION.lng;
+
+            while (remaining.length > 0) {
+                let bestIdx = -1;
+                let bestRank = Infinity;
+
+                for (let i = 0; i < remaining.length; i++) {
+                    const cand = remaining[i];
+                    const distKm = calcDistanceKm(anchorLat, anchorLng, cand.lat, cand.lng);
+                    // Сочетаем близость к текущей точке, низкий остаток и скорость продаж AVR (л/день)
+                    const rank = distKm * 4.0 + calcKioskUrgencyIndex(cand);
+                    if (rank < bestRank) {
+                        bestRank = rank;
+                        bestIdx = i;
+                    }
+                }
+
+                const chosen = remaining.splice(bestIdx, 1)[0];
+
+                if (chosen.refillNeedLiters <= currentTankRemaining) {
+                    pickedIds.push(chosen.id);
+                    currentTankRemaining -= chosen.refillNeedLiters;
+                    if (chosen.hasValidCoords) {
+                        anchorLat = chosen.lat;
+                        anchorLng = chosen.lng;
+                    }
+                } else if (currentRunIndex + 1 < runsCount && chosen.refillNeedLiters <= vehicle.capacityLiters) {
+                    currentRunIndex++;
+                    currentTankRemaining = vehicle.capacityLiters - chosen.refillNeedLiters;
+                    pickedIds.push(chosen.id);
+                    if (chosen.hasValidCoords) {
+                        anchorLat = chosen.lat;
+                        anchorLng = chosen.lng;
+                    }
+                }
+            }
+
+            state.tripPlanner.selectedKioskIds = pickedIds;
+        }
+
+        function toggleTripDirection(dirName) {
+            const list = state.tripPlanner.selectedDirections;
+            const idx = list.indexOf(dirName);
+            if (idx >= 0) {
+                list.splice(idx, 1);
+            } else {
+                list.push(dirName);
+            }
+            autoSelectStopsByProximityAndLevel();
+            renderTripsModalUI();
+        }
+
+        function toggleTripKioskStop(kioskId) {
+            const list = state.tripPlanner.selectedKioskIds;
+            const idx = list.indexOf(kioskId);
+            if (idx >= 0) {
+                list.splice(idx, 1);
+            } else {
+                list.push(kioskId);
+            }
+            renderTripsModalUI();
+        }
+
+        function saveCurrentDraftToShift() {
+            const vehicle = getVehicleConfig(state.tripPlanner.selectedVehicleId);
+            const selectedIdSet = new Set(state.tripPlanner.selectedKioskIds);
+            const selectedStops = state.kiosks.filter(k => selectedIdSet.has(k.id));
+
+            if (selectedStops.length === 0) {
+                showToast('Выберите хотя бы один киоск для сохранения рейса', 'warning');
+                return;
+            }
+
+            const runsBreakdown = groupStopsIntoRunsAutomatically(selectedStops, vehicle.capacityLiters, state.tripPlanner.runsCount);
+            const orderedIds = [];
+            runsBreakdown.forEach(r => r.stops.forEach(s => orderedIds.push(s.id)));
+
+            const totalLiters = selectedStops.reduce((sum, k) => sum + k.refillNeedLiters, 0);
+
+            if (state.tripPlanner.editingPlanId) {
+                const idx = state.savedShiftPlans.findIndex(p => p.id === state.tripPlanner.editingPlanId);
+                if (idx >= 0) {
+                    state.savedShiftPlans[idx] = {
+                        ...state.savedShiftPlans[idx],
+                        vehicleId: vehicle.id,
+                        plate: vehicle.plate,
+                        machineLabel: vehicle.label,
+                        tonnage: vehicle.tonnage,
+                        capacityLiters: vehicle.capacityLiters,
+                        runsCount: state.tripPlanner.runsCount,
+                        directions: [...state.tripPlanner.selectedDirections],
+                        kioskIds: orderedIds,
+                        totalLiters,
+                        color: vehicle.color
+                    };
+                }
+                showToast(`Рейс для авто ${vehicle.label} обновлён`, 'success');
+            } else {
+                state.savedShiftPlans.push({
+                    id: 'shift-' + Date.now(),
+                    vehicleId: vehicle.id,
+                    plate: vehicle.plate,
+                    machineLabel: vehicle.label,
+                    tonnage: vehicle.tonnage,
+                    capacityLiters: vehicle.capacityLiters,
+                    runsCount: state.tripPlanner.runsCount,
+                    directions: [...state.tripPlanner.selectedDirections],
+                    kioskIds: orderedIds,
+                    totalLiters,
+                    color: vehicle.color
+                });
+                showToast(`Рейс для авто ${vehicle.label} сохранён!`, 'success');
+            }
+
+            persistSavedShiftPlans();
+
+            const usedVehicleIds = new Set(state.savedShiftPlans.map(p => p.vehicleId));
+            const nextFreeVehicle = FLEET_VEHICLES.find(v => !usedVehicleIds.has(v.id)) || vehicle;
+
+            state.tripPlanner.editingPlanId = null;
+            state.tripPlanner.selectedVehicleId = nextFreeVehicle.id;
+            autoBuildTripDraft();
+
+            if (state.tripPlanner.mapOverlayActive) {
+                updateShiftOverlayOnMap();
+            }
+        }
+
+        function editSavedShiftPlan(planId) {
+            const plan = state.savedShiftPlans.find(p => p.id === planId);
+            if (!plan) return;
+
+            state.tripPlanner.editingPlanId = plan.id;
+            state.tripPlanner.selectedVehicleId = plan.vehicleId || '567';
+            state.tripPlanner.runsCount = plan.runsCount;
+            state.tripPlanner.selectedDirections = [...(plan.directions || [])];
+            state.tripPlanner.selectedKioskIds = [...(plan.kioskIds || [])];
+
+            renderTripsModalUI();
+        }
+
+        function deleteSavedShiftPlan(planId) {
+            state.savedShiftPlans = state.savedShiftPlans.filter(p => p.id !== planId);
+            if (state.tripPlanner.editingPlanId === planId) {
+                state.tripPlanner.editingPlanId = null;
+            }
+            persistSavedShiftPlans();
+            autoBuildTripDraft();
+            if (state.tripPlanner.mapOverlayActive) {
+                updateShiftOverlayOnMap();
+            }
+            showToast('Рейс автомобиля удалён', 'info');
+        }
+
+        function clearAllSavedShiftPlans() {
+            if (state.savedShiftPlans.length === 0) {
+                showToast('Список сохранённых рейсов уже пуст', 'info');
+                return;
+            }
+            state.savedShiftPlans = [];
+            state.tripPlanner.editingPlanId = null;
+            state.tripPlanner.mapOverlayActive = false;
+            persistSavedShiftPlans();
+            updateShiftOverlayOnMap();
+            autoBuildTripDraft();
+            showToast('Все рейсы смены очищены вручную', 'success');
+        }
+
+        function resetTripDraftToNew() {
+            state.tripPlanner.editingPlanId = null;
+            autoBuildTripDraft();
+        }
+
+        function renderTripsModalUI() {
+            const vehicle = getVehicleConfig(state.tripPlanner.selectedVehicleId);
+            const runsCount = state.tripPlanner.runsCount;
+            const totalFleetCapacity = vehicle.capacityLiters * runsCount;
+            const busyElsewhere = getAssignedKioskIdsInOtherPlans();
+
+            // 0. Рендер списка сохранённых рейсов по автомобилям
+            const savedCountEl = document.getElementById('savedShiftPlansCount');
+            const savedContainer = document.getElementById('savedShiftPlansContainer');
+            if (savedCountEl) savedCountEl.textContent = String(state.savedShiftPlans.length);
+
+            if (savedContainer) {
+                if (state.savedShiftPlans.length === 0) {
+                    savedContainer.innerHTML = `
+                        <div class="col-span-full text-xs text-slate-400 bg-white/5 rounded-xl p-3 border border-white/10">
+                            В текущей смене пока нет сохранённых рейсов. Выберите автомобиль ниже и нажмите «Сохранить рейс».
+                        </div>
+                    `;
+                } else {
+                    savedContainer.innerHTML = state.savedShiftPlans.map((plan, idx) => {
+                        const isEditing = state.tripPlanner.editingPlanId === plan.id;
+                        const escapedId = escapeHtml(plan.id).replace(/'/g, '&#39;');
+                        return `
+                            <div class="p-2.5 rounded-xl border ${isEditing ? 'bg-sky-900/60 border-sky-400' : 'bg-white/10 border-white/15'} flex items-center justify-between gap-2 text-xs">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="px-1.5 py-0.2 rounded text-[10px] font-extrabold text-white shrink-0" style="background:${plan.color};">${escapeHtml(plan.plate || plan.machineLabel)}</span>
+                                        <span class="font-extrabold text-white truncate">Рейс №${idx + 1}: ${escapeHtml(plan.machineLabel)}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-300 mt-0.5 truncate">
+                                        ${plan.runsCount} выезд. • ${plan.kioskIds.length} точек • ${plan.totalLiters} л
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button onclick="editSavedShiftPlan('${escapedId}')" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sky-300 transition" title="Редактировать рейс">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button onclick="deleteSavedShiftPlan('${escapedId}')" class="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/35 text-red-300 transition" title="Удалить рейс">
+                                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // Шапка редактора
+            const editorBadge = document.getElementById('editorModeBadge');
+            const selectedVehHeader = document.getElementById('selectedVehicleHeaderBadge');
+            const cancelEditBtn = document.getElementById('btnCancelEditTrip');
+            const saveBtnLabel = document.getElementById('btnSaveTripLabel');
+
+            if (editorBadge) {
+                editorBadge.textContent = state.tripPlanner.editingPlanId ? 'Редактирование рейса' : 'Новый рейс автомобиля';
+                editorBadge.className = state.tripPlanner.editingPlanId
+                    ? 'px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-extrabold'
+                    : 'px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[11px] font-extrabold';
+            }
+            if (selectedVehHeader) {
+                selectedVehHeader.textContent = `Авто: ${vehicle.label} • цистерна ${vehicle.capacityLiters} л`;
+            }
+            if (cancelEditBtn) cancelEditBtn.classList.toggle('hidden', !state.tripPlanner.editingPlanId);
+            if (saveBtnLabel) saveBtnLabel.textContent = state.tripPlanner.editingPlanId ? 'Сохранить изменения' : `Сохранить рейс для ${vehicle.plate} и далее`;
+
+            // 1. Карточки конкретных автомобилей
+            const truckGrid = document.getElementById('truckSelectorGrid');
+            if (truckGrid) {
+                truckGrid.innerHTML = FLEET_VEHICLES.map(v => {
+                    const isSelected = v.id === vehicle.id;
+                    const savedPlansCount = state.savedShiftPlans.filter(p => p.vehicleId === v.id).length;
+                    const freeEligibleCount = state.kiosks.filter(k =>
+                        !busyElsewhere.has(k.id) &&
+                        isKioskAccessibleForVehicle(k, v) &&
+                        isKioskEligibleForRefill(k)
+                    ).length;
+
+                    return `
+                        <button onclick="selectVehicleForTrip('${v.id}')" class="p-2.5 rounded-2xl border text-left transition relative ${isSelected ? 'bg-sky-600 text-white border-sky-600 shadow-md shadow-sky-600/20' : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200'}">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="text-sm font-extrabold">${escapeHtml(v.plate)} <span class="text-xs font-bold opacity-90">(${v.tonnageLabel})</span></span>
+                                ${savedPlansCount > 0 ? `<span class="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white text-sky-700' : 'bg-emerald-100 text-emerald-800'}">${savedPlansCount} рейс.</span>` : ''}
+                            </div>
+                            <div class="text-[11px] mt-1 ${isSelected ? 'text-sky-100' : 'text-slate-500'}">Бак: ${v.capacityLiters} л • ${freeEligibleCount} т.</div>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            const runsDisplay = document.getElementById('draftRunsCountDisplay');
+            if (runsDisplay) {
+                const word = runsCount === 1 ? 'выезд' : (runsCount >= 2 && runsCount <= 4 ? 'выезда' : 'выездов');
+                runsDisplay.textContent = `${runsCount} ${word}`;
+            }
+
+            const hintEl = document.getElementById('truckRuleHint');
+            if (hintEl) {
+                hintEl.textContent = `${runsCount} выезд. × ${vehicle.capacityLiters} л = ${totalFleetCapacity} л всего`;
+            }
+
+            // 2. Направления
+            const dirStats = {};
+            state.kiosks.forEach(k => {
+                if (busyElsewhere.has(k.id) || !isKioskAccessibleForVehicle(k, vehicle) || !isKioskEligibleForRefill(k)) return;
+                const dir = k.direction || 'Без направления';
+                if (!dirStats[dir]) {
+                    dirStats[dir] = { name: dir, needRefill: 0, lowOrEmpty: 0, totalAvr: 0, sumUrgency: 0 };
+                }
+                dirStats[dir].needRefill++;
+                if (k.status === 'critical' || k.status === 'low') dirStats[dir].lowOrEmpty++;
+                dirStats[dir].totalAvr += (k.avrDailyLiters || 0);
+                dirStats[dir].sumUrgency += calcKioskUrgencyIndex(k);
+            });
+
+            const sortedDirs = Object.values(dirStats).sort((a, b) => {
+                if (b.lowOrEmpty !== a.lowOrEmpty) return b.lowOrEmpty - a.lowOrEmpty;
+                const urgA = a.sumUrgency / Math.max(1, a.needRefill);
+                const urgB = b.sumUrgency / Math.max(1, b.needRefill);
+                if (Math.abs(urgA - urgB) > 1.5) return urgA - urgB;
+                return b.totalAvr - a.totalAvr;
+            });
+
+            const dirsContainer = document.getElementById('tripDirectionsContainer');
+            if (dirsContainer) {
+                if (sortedDirs.length === 0) {
+                    dirsContainer.innerHTML = `<span class="text-xs text-slate-400">Все свободные киоски для авто ${escapeHtml(vehicle.label)} с дозаправкой &ge;${MIN_REFILL_LITERS} л уже распределены</span>`;
+                } else {
+                    dirsContainer.innerHTML = sortedDirs.map(d => {
+                        const isSelected = state.tripPlanner.selectedDirections.includes(d.name);
+                        const escapedName = escapeHtml(d.name).replace(/'/g, '&#39;');
+                        const avrSuffix = d.totalAvr > 0 ? ` • AVR ${d.totalAvr}л/д` : '';
+                        return `
+                            <button onclick="toggleTripDirection('${escapedName}')" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 ${isSelected ? 'bg-sky-600 text-white border-sky-600 shadow-2xs' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'}">
+                                <span>${escapeHtml(d.name)}</span>
+                                <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isSelected ? 'bg-white/25 text-white' : (d.lowOrEmpty > 0 ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600')}">
+                                    ${d.lowOrEmpty > 0 ? `${d.lowOrEmpty} низк.` : `${d.needRefill} т.`}${avrSuffix}
+                                </span>
+                            </button>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // 3. Автоматическая группировка выбранных точек по выездам со скважины
+            const selectedDirSet = new Set(state.tripPlanner.selectedDirections);
+            const selectedIdSet = new Set(state.tripPlanner.selectedKioskIds);
+
+            const selectedStops = state.kiosks.filter(k => selectedIdSet.has(k.id));
+            const totalVolume = selectedStops.reduce((sum, k) => sum + k.refillNeedLiters, 0);
+            const runsBreakdown = groupStopsIntoRunsAutomatically(selectedStops, vehicle.capacityLiters, runsCount);
+
+            const runMetaByKioskId = {};
+            runsBreakdown.forEach(r => {
+                r.stops.forEach((s, stopIdx) => {
+                    const prevLat = stopIdx === 0 ? WELL_LOCATION.lat : r.stops[stopIdx - 1].lat;
+                    const prevLng = stopIdx === 0 ? WELL_LOCATION.lng : r.stops[stopIdx - 1].lng;
+                    const distFromPrev = calcDistanceKm(prevLat, prevLng, s.lat, s.lng);
+                    runMetaByKioskId[s.id] = {
+                        runNumber: r.runNumber,
+                        orderInRun: stopIdx + 1,
+                        distFromPrev,
+                        isFromWell: stopIdx === 0
+                    };
+                });
+            });
+
+            const candidateKiosks = state.kiosks
+                .filter(k =>
+                    !busyElsewhere.has(k.id) &&
+                    selectedDirSet.has(k.direction || 'Без направления') &&
+                    isKioskAccessibleForVehicle(k, vehicle) &&
+                    isKioskEligibleForRefill(k)
+                )
+                .sort((a, b) => {
+                    const metaA = runMetaByKioskId[a.id];
+                    const metaB = runMetaByKioskId[b.id];
+                    if (metaA && metaB) {
+                        if (metaA.runNumber !== metaB.runNumber) return metaA.runNumber - metaB.runNumber;
+                        return metaA.orderInRun - metaB.orderInRun;
+                    }
+                    if (metaA) return -1;
+                    if (metaB) return 1;
+                    return calcKioskUrgencyIndex(a) - calcKioskUrgencyIndex(b);
+                });
+
+            const stopsBadge = document.getElementById('tripStopsSummary');
+            const volBadge = document.getElementById('tripVolumeSummary');
+            const progressBar = document.getElementById('tripTankProgressBar');
+
+            if (stopsBadge) {
+                stopsBadge.textContent = `Выездов: ${runsBreakdown.length} из ${runsCount} • Точек: ${selectedStops.length}`;
+            }
+
+            if (volBadge) {
+                const isOverloaded = totalVolume > totalFleetCapacity;
+                volBadge.textContent = `${totalVolume} / ${totalFleetCapacity} л`;
+                volBadge.className = isOverloaded
+                    ? 'px-2.5 py-1 rounded-lg bg-red-50 text-red-700 font-bold border border-red-200'
+                    : 'px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200';
+            }
+
+            if (progressBar) {
+                const fillPct = totalFleetCapacity > 0 ? Math.min(100, Math.round((totalVolume / totalFleetCapacity) * 100)) : 0;
+                progressBar.style.width = `${fillPct}%`;
+                progressBar.className = totalVolume > totalFleetCapacity
+                    ? 'h-full bg-red-500 transition-all duration-300'
+                    : 'h-full bg-sky-600 transition-all duration-300';
+            }
+
+            const breakdownEl = document.getElementById('tripRunsBreakdown');
+            if (breakdownEl) {
+                if (runsBreakdown.length === 0) {
+                    breakdownEl.innerHTML = '';
+                } else {
+                    breakdownEl.innerHTML = runsBreakdown.map(r => {
+                        const overSingleTank = r.usedLiters > vehicle.capacityLiters;
+                        const runIdsCsv = escapeHtml(r.stops.map(s => s.id).join(','));
+                        return `
+                            <div class="p-2.5 rounded-xl border ${overSingleTank ? 'bg-red-50/70 border-red-200' : 'bg-slate-50 border-slate-200/80'} flex items-center justify-between gap-2 text-xs">
+                                <div>
+                                    <span class="font-extrabold text-slate-900">Выезд №${r.runNumber}</span>
+                                    <span class="text-slate-500 ml-1">(${r.stops.length} т. • ~${r.totalDistanceKm.toFixed(1)} км от скважины)</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <span class="font-extrabold ${overSingleTank ? 'text-red-600' : 'text-sky-700'}">${r.usedLiters} / ${vehicle.capacityLiters} л</span>
+                                    <button onclick="openMultiStopRunInYandex('${runIdsCsv}')" class="px-2 py-1 rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-[10px]" title="Открыть маршрут выезда от скважины в Яндекс.Картах">
+                                        Яндекс
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const listEl = document.getElementById('tripKiosksList');
+            if (listEl) {
+                if (candidateKiosks.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="p-6 text-center text-xs text-slate-400">
+                            В выбранных направлениях нет свободных киосков для авто <b>${escapeHtml(vehicle.label)}</b> с дозаправкой от <b>${MIN_REFILL_LITERS} л</b>
+                        </div>
+                    `;
+                } else {
+                    listEl.innerHTML = candidateKiosks.map(k => {
+                        const checked = selectedIdSet.has(k.id);
+                        const meta = STATUS_META[k.status] || STATUS_META.full;
+                        const runInfo = runMetaByKioskId[k.id];
+                        const escapedId = escapeHtml(k.id).replace(/'/g, '&#39;');
+                        return `
+                            <label onclick="toggleTripKioskStop('${escapedId}')" class="flex items-center justify-between gap-3 p-3 cursor-pointer transition ${checked ? 'bg-sky-50/60' : 'hover:bg-slate-50'}">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <input type="checkbox" ${checked ? 'checked' : ''} onclick="event.preventDefault()" class="w-4 h-4 rounded text-sky-600 border-slate-300 focus:ring-sky-500 shrink-0">
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            ${checked && runInfo ? `<span class="px-1.5 py-0.2 rounded bg-sky-600 text-white text-[10px] font-extrabold">Выезд №${runInfo.runNumber} (#${runInfo.orderInRun})</span>` : ''}
+                                            <span class="text-xs font-extrabold text-slate-900">№${escapeHtml(k.id)}</span>
+                                            <span class="text-xs font-semibold text-slate-800 truncate">${escapeHtml(k.address)}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 mt-1 flex-wrap text-[11px]">
+                                            <span class="px-1.5 py-0.2 rounded border font-semibold ${meta.badgeBg}">${escapeHtml(k.levelInfo.displayValue)}</span>
+                                            <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium">${escapeHtml(k.direction)}</span>
+                                            ${k.avrDailyLiters > 0 ? `<span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200/80 font-semibold">AVR: ${k.avrDailyLiters} л/д</span>` : ''}
+                                            ${checked && runInfo && runInfo.distFromPrev != null ? `<span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-semibold">~${formatDistanceKm(runInfo.distFromPrev)} ${runInfo.isFromWell ? 'от скважины' : 'от пред.'}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <div class="text-xs font-extrabold text-sky-700">+${k.refillNeedLiters} л</div>
+                                    <div class="text-[10px] text-slate-400">до 95%</div>
+                                </div>
+                            </label>
+                        `;
+                    }).join('');
+                }
+            }
+
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        function showSavedShiftOnMap() {
+            if (state.savedShiftPlans.length === 0) {
+                if (state.tripPlanner.selectedKioskIds.length > 0) {
+                    saveCurrentDraftToShift();
+                } else {
+                    showToast('Сначала сохраните хотя бы один рейс автомобиля', 'warning');
+                    return;
+                }
+            }
+
+            state.tripPlanner.mapOverlayActive = true;
+            closeModal('tripsModal');
+            updateShiftOverlayOnMap();
+
+            const allPlannedIds = new Set();
+            state.savedShiftPlans.forEach(p => (p.kioskIds || []).forEach(id => allPlannedIds.add(id)));
+
+            const validCoords = state.kiosks
+                .filter(k => allPlannedIds.has(k.id) && k.hasValidCoords)
+                .map(k => [k.lat, k.lng]);
+
+            // Включаем скважину в охват карты
+            validCoords.push([WELL_LOCATION.lat, WELL_LOCATION.lng]);
+
+            if (map && validCoords.length > 0) {
+                map.fitBounds(L.latLngBounds(validCoords), { padding: [56, 56], maxZoom: 15 });
+            }
+            showToast(`Строим маршруты по дорогам от скважины (${state.savedShiftPlans.length} рейс.)...`, 'info');
+        }
+
+        function clearTripOverlay() {
+            state.tripPlanner.mapOverlayActive = false;
+            updateShiftOverlayOnMap();
+        }
+
+        function createWellMarker() {
+            const wellIcon = L.divIcon({
+                className: 'aqua-marker-wrapper',
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+                popupAnchor: [0, -22],
+                html: `
+                    <div class="well-marker-badge" title="Скважина: ул. Карла Маркса, 1">
+                        <span style="font-size:13px;">💧</span>
+                        <span style="font-size:7px; letter-spacing:0.02em; margin-top:1px;">СКВ</span>
+                    </div>
+                `
+            });
+
+            const marker = L.marker([WELL_LOCATION.lat, WELL_LOCATION.lng], {
+                icon: wellIcon,
+                zIndexOffset: 1000
+            });
+
+            marker.bindPopup(`
+                <div class="p-3.5 font-sans">
+                    <div class="text-[11px] font-bold text-sky-600 uppercase tracking-wide">База / Точка старта</div>
+                    <div class="text-sm font-extrabold text-slate-900 mt-0.5">Скважина</div>
+                    <div class="text-xs text-slate-600 mt-1">${escapeHtml(WELL_LOCATION.address)}</div>
+                    <div class="text-[11px] text-slate-500 mt-2">Все выезды автомобилей строятся по дорогам от этой точки.</div>
+                </div>
+            `);
+
+            return marker;
+        }
+
+        async function updateShiftOverlayOnMap() {
+            const banner = document.getElementById('activeTripBanner');
+            if (tripPolylineLayer) tripPolylineLayer.clearLayers();
+
+            const isActive = state.tripPlanner.mapOverlayActive && state.savedShiftPlans.length > 0;
+            if (banner) banner.classList.toggle('hidden', !isActive);
+
+            renderMapMarkers();
+
+            if (!isActive || !map || !tripPolylineLayer) return;
+
+            const renderToken = ++state.tripPlanner.routeRenderToken;
+
+            // Добавляем маркер скважины (ул. Карла Маркса, 1)
+            createWellMarker().addTo(tripPolylineLayer);
+
+            let totalStops = 0;
+            let totalLiters = 0;
+
+            const titleEl = document.getElementById('activeTripBannerTitle');
+            const subEl = document.getElementById('activeTripBannerSub');
+            const statusEl = document.getElementById('activeTripBannerRouteStatus');
+
+            state.savedShiftPlans.forEach(plan => {
+                totalStops += plan.kioskIds.length;
+                totalLiters += plan.totalLiters;
+            });
+
+            if (titleEl) titleEl.textContent = `Смена от скважины: ${state.savedShiftPlans.length} рейс.`;
+            if (subEl) subEl.textContent = `Точек: ${totalStops} • Объём: ${totalLiters} л • Старт: Карла Маркса, 1`;
+            if (statusEl) statusEl.textContent = 'Построение маршрута по дорогам...';
+
+            let totalRoadDistanceKm = 0;
+            let hasAnyRoadGeometry = false;
+
+            for (let pIdx = 0; pIdx < state.savedShiftPlans.length; pIdx++) {
+                const plan = state.savedShiftPlans[pIdx];
+                const stops = plan.kioskIds
+                    .map(id => state.kiosks.find(k => k.id === id))
+                    .filter(k => k && k.hasValidCoords);
+
+                if (stops.length === 0) continue;
+
+                const runsBreakdown = groupStopsIntoRunsAutomatically(stops, plan.capacityLiters, plan.runsCount);
+
+                for (let rIdx = 0; rIdx < runsBreakdown.length; rIdx++) {
+                    if (renderToken !== state.tripPlanner.routeRenderToken) return;
+
+                    const run = runsBreakdown[rIdx];
+                    // Каждый выезд начинается от скважины (Карла Маркса, 1)
+                    const waypoints = [[WELL_LOCATION.lat, WELL_LOCATION.lng]];
+                    run.stops.forEach(s => {
+                        if (s.hasValidCoords) waypoints.push([s.lat, s.lng]);
+                    });
+
+                    // Если у автомобиля несколько выездов, машина возвращается на скважину после предыдущего выезда
+                    if (rIdx + 1 < runsBreakdown.length) {
+                        waypoints.push([WELL_LOCATION.lat, WELL_LOCATION.lng]);
+                    }
+
+                    const roadData = await fetchRoadRouteGeometry(waypoints);
+                    if (renderToken !== state.tripPlanner.routeRenderToken) return;
+
+                    totalRoadDistanceKm += roadData.distanceKm;
+                    if (roadData.isRoad) hasAnyRoadGeometry = true;
+
+                    // Белая подложка под линией маршрута для чёткой читаемости на карте 2ГИС
+                    L.polyline(roadData.coords, {
+                        color: '#ffffff',
+                        weight: 7,
+                        opacity: 0.9,
+                        lineJoin: 'round',
+                        lineCap: 'round'
+                    }).addTo(tripPolylineLayer);
+
+                    // Основная цветная линия маршрута по дорогам
+                    const routeLine = L.polyline(roadData.coords, {
+                        color: plan.color || '#0284c7',
+                        weight: 4.5,
+                        opacity: 0.92,
+                        lineJoin: 'round',
+                        lineCap: 'round',
+                        dashArray: rIdx > 0 ? '10, 7' : null
+                    }).addTo(tripPolylineLayer);
+
+                    routeLine.bindPopup(`
+                        <div class="p-3 font-sans text-xs">
+                            <div class="font-extrabold text-slate-900">Авто ${escapeHtml(plan.machineLabel)} — Выезд №${run.runNumber}</div>
+                            <div class="text-slate-600 mt-1">Старт: Скважина (Карла Маркса, 1)</div>
+                            <div class="text-slate-600">Точек: ${run.stops.length} • Заправка: ${run.usedLiters} л</div>
+                            <div class="font-bold text-sky-700 mt-1">Пробег по дорогам: ${roadData.distanceKm.toFixed(1)} км</div>
+                        </div>
+                    `);
+                }
+            }
+
+            if (renderToken === state.tripPlanner.routeRenderToken && statusEl) {
+                statusEl.textContent = hasAnyRoadGeometry
+                    ? `Построено по дорогам • Пробег смены: ${totalRoadDistanceKm.toFixed(1)} км`
+                    : `Маршрут построен • Расстояние: ${totalRoadDistanceKm.toFixed(1)} км`;
+            }
+        }
+
+        function copyAllShiftManifests() {
+            if (state.savedShiftPlans.length === 0) {
+                showToast('В смене нет сохранённых рейсов', 'warning');
+                return;
+            }
+
+            const lines = [
+                `ПЛАН ЗАПРАВКИ НА СМЕНУ (Рейсов: ${state.savedShiftPlans.length})`,
+                `Точка старта: Скважина — ${WELL_LOCATION.address}`,
+                '========================================================'
+            ];
+
+            state.savedShiftPlans.forEach((plan, pIdx) => {
+                const stops = plan.kioskIds
+                    .map(id => state.kiosks.find(k => k.id === id))
+                    .filter(Boolean);
+                const runsBreakdown = groupStopsIntoRunsAutomatically(stops, plan.capacityLiters, plan.runsCount);
+
+                lines.push(`\nРЕЙС №${pIdx + 1} — АВТО ${plan.machineLabel} (бак ${plan.capacityLiters} л, выездов: ${plan.runsCount}, всего: ${plan.totalLiters} л)`);
+                runsBreakdown.forEach(run => {
+                    lines.push(`  [Выезд от скважины №${run.runNumber} — ${run.usedLiters} / ${plan.capacityLiters} л]`);
+                    run.stops.forEach((k, idx) => {
+                        lines.push(`    ${idx + 1}. №${k.id} — ${k.address} (${k.direction}) | Остаток: ${k.levelInfo.displayValue} -> Залить: +${k.refillNeedLiters} л`);
+                    });
+                });
+            });
+
+            const text = lines.join('\n');
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('Маршрутный лист всей смены скопирован', 'success');
+            } catch (e) {
+                showToast('Не удалось скопировать текст', 'error');
+            }
+        }
+
+        /* =========================================================================
+           ФИЛЬТРАЦИЯ, СТАТИСТИКА И ОТРИСОВКА КАРТЫ + СПИСКА
            ========================================================================= */
         function rebuildView() {
             state.kiosks.sort((a, b) => {
                 const pa = (STATUS_META[a.status] || STATUS_META.full).priority;
                 const pb = (STATUS_META[b.status] || STATUS_META.full).priority;
                 if (pa !== pb) return pa - pb;
+                const urgDiff = calcKioskUrgencyIndex(a) - calcKioskUrgencyIndex(b);
+                if (Math.abs(urgDiff) > 1.0) return urgDiff;
                 return String(a.id).localeCompare(String(b.id), 'ru', { numeric: true });
             });
 
             updateKpiAndFilterCounts();
             applyFilters();
 
-            if (!state.hasFittedInitialBounds && state.kiosks.some(k => !k.isExcluded && k.status !== 'excluded' && k.hasValidCoords)) {
+            if (!state.hasFittedInitialBounds && state.kiosks.some(k => k.hasValidCoords)) {
                 state.hasFittedInitialBounds = true;
                 fitAllMarkers();
             }
 
             const countEl = document.getElementById('debugUnmatchedCount');
             if (countEl) countEl.textContent = String(state.unmatchedSheetList.length);
+            updateSavedShiftHeaderBadge();
             applyUserRoleUI();
         }
 
@@ -1613,18 +2919,13 @@
             let countCritical = 0;
             let countLow = 0;
             let countOffline = 0;
-            let countExcluded = 0;
             let sumPercent = 0;
             let activeTelemetryCount = 0;
 
             for (let i = 0; i < state.kiosks.length; i++) {
                 const k = state.kiosks[i];
-                if (k.isExcluded || k.status === 'excluded') {
-                    countExcluded++;
-                    continue;
-                }
-
                 countActiveAll++;
+
                 if (k.status === 'critical') countCritical++;
                 else if (k.status === 'low') countLow++;
                 else if (k.status === 'offline') countOffline++;
@@ -1650,11 +2951,9 @@
 
             const countsMap = {
                 all: countActiveAll,
-                attention: countAttention,
                 critical: countCritical,
                 low: countLow,
-                offline: countOffline,
-                excluded: countExcluded
+                offline: countOffline
             };
 
             document.querySelectorAll('.filter-pill').forEach(btn => {
@@ -1697,22 +2996,12 @@
             const f = state.currentFilter;
 
             state.filteredKiosks = state.kiosks.filter(k => {
-                const isExcl = k.isExcluded || k.status === 'excluded';
-
-                // Киоски под исключением показываем ТОЛЬКО во вкладке "Исключения"
-                if (f === 'excluded') {
-                    if (!isExcl) return false;
-                } else {
-                    if (isExcl) return false;
-                    if (f === 'attention') {
-                        if (!(k.status === 'critical' || k.status === 'low' || k.status === 'offline')) return false;
-                    } else if (f !== 'all') {
-                        if (k.status !== f) return false;
-                    }
+                if (f !== 'all' && k.status !== f) {
+                    return false;
                 }
 
                 if (q) {
-                    const hay = `${k.id} ${k.address} ${k.levelInfo.displayValue}`.toLowerCase();
+                    const hay = `${k.id} ${k.address} ${k.direction} ${k.truckAccess.label} ${k.levelInfo.displayValue}`.toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
                 return true;
@@ -1722,14 +3011,27 @@
             resetAndRenderKioskList();
         }
 
+        function getAssignedShiftPlanInfo(kioskId) {
+            for (let i = 0; i < state.savedShiftPlans.length; i++) {
+                const plan = state.savedShiftPlans[i];
+                if ((plan.kioskIds || []).includes(kioskId)) {
+                    return {
+                        planIndex: i + 1,
+                        plan
+                    };
+                }
+            }
+            return null;
+        }
+
         function buildMarkerIcon(kiosk) {
             const meta = STATUS_META[kiosk.status] || STATUS_META.full;
             const subText = kiosk.levelInfo.markerSubLabel || '—';
             const isCompact = subText.length >= 4;
+            const shiftInfo = getAssignedShiftPlanInfo(kiosk.id);
 
-            // Визуальная высота уровня заполнения внутри маркера-капли
             let visualFillPercent = kiosk.levelInfo.percent;
-            if (kiosk.status === 'offline' || kiosk.status === 'excluded') {
+            if (kiosk.status === 'offline') {
                 visualFillPercent = 100;
             } else if (kiosk.status === 'critical') {
                 visualFillPercent = Math.max(visualFillPercent, 15);
@@ -1741,10 +3043,10 @@
                 visualFillPercent = Math.max(80, Math.min(100, visualFillPercent));
             }
 
-            // Пересчёт процента заполнения с учётом диагонали повёрнутого квадрата (~44px из 62px)
             const scaledHeight = Math.round(14 + (visualFillPercent / 100) * 72);
-            const showWaterSurface = visualFillPercent > 0 && visualFillPercent < 96 && kiosk.status !== 'offline' && kiosk.status !== 'excluded';
-            const pinBorderColor = kiosk.status === 'critical' ? '#fecaca' : '#ffffff';
+            const showWaterSurface = visualFillPercent > 0 && visualFillPercent < 96 && kiosk.status !== 'offline';
+            const pinBorderColor = shiftInfo ? shiftInfo.plan.color : (kiosk.status === 'critical' ? '#fecaca' : '#ffffff');
+            const plateBadge = shiftInfo ? (shiftInfo.plan.plate || `Р${shiftInfo.planIndex}`) : '';
 
             return L.divIcon({
                 className: 'aqua-marker-wrapper',
@@ -1752,14 +3054,17 @@
                 iconAnchor: [22, 42],
                 popupAnchor: [0, -38],
                 html: `
-                    <div class="aqua-pin" style="border-color:${pinBorderColor};">
-                        <div class="aqua-pin-upright">
-                            <div class="aqua-pin-water" style="height:${scaledHeight}%; background:${meta.color};">
-                                ${showWaterSurface ? '<div class="aqua-pin-water-line"></div>' : ''}
-                            </div>
-                            <div class="aqua-pin-content">
-                                <span class="aqua-pin-id">${escapeHtml(kiosk.id)}</span>
-                                <span class="aqua-pin-sub ${isCompact ? 'is-compact' : ''}">${escapeHtml(subText)}</span>
+                    <div style="position:relative; width:44px; height:44px;">
+                        ${shiftInfo ? `<span class="aqua-trip-tag" style="background:${shiftInfo.plan.color};">${escapeHtml(plateBadge)}</span>` : ''}
+                        <div class="aqua-pin" style="border-color:${pinBorderColor};">
+                            <div class="aqua-pin-upright">
+                                <div class="aqua-pin-water" style="height:${scaledHeight}%; background:${meta.color};">
+                                    ${showWaterSurface ? '<div class="aqua-pin-water-line"></div>' : ''}
+                                </div>
+                                <div class="aqua-pin-content">
+                                    <span class="aqua-pin-id">${escapeHtml(kiosk.id)}</span>
+                                    <span class="aqua-pin-sub ${isCompact ? 'is-compact' : ''}">${escapeHtml(subText)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1770,6 +3075,7 @@
         function buildPopupHtml(kiosk) {
             const meta = STATUS_META[kiosk.status] || STATUS_META.full;
             const pct = kiosk.levelInfo.percent;
+            const shiftInfo = getAssignedShiftPlanInfo(kiosk.id);
 
             return `
                 <div class="p-3.5 font-sans">
@@ -1778,6 +3084,13 @@
                             <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Водомат №${escapeHtml(kiosk.id)}</div>
                             <div class="text-sm font-bold text-slate-900 leading-snug mt-0.5">${escapeHtml(kiosk.address)}</div>
                         </div>
+                    </div>
+
+                    <div class="mt-1.5 flex items-center gap-1.5 flex-wrap text-[10px]">
+                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold">${escapeHtml(kiosk.direction)}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-semibold">Авто: ${escapeHtml(kiosk.truckAccess.label)}</span>
+                        ${kiosk.avrDailyLiters > 0 ? `<span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-semibold">AVR: ${kiosk.avrDailyLiters} л/д</span>` : ''}
+                        ${shiftInfo ? `<span class="px-2 py-0.5 rounded-md text-white font-bold" style="background:${shiftInfo.plan.color};">Авто ${escapeHtml(shiftInfo.plan.machineLabel)}</span>` : ''}
                     </div>
 
                     <div class="mt-2.5 flex items-center justify-between gap-2">
@@ -1792,6 +3105,11 @@
                     </div>
 
                     <div class="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                        <span>Дозаправка до 95%:</span>
+                        <span class="font-bold text-sky-700">+${kiosk.refillNeedLiters} л</span>
+                    </div>
+
+                    <div class="mt-1 text-[11px] text-slate-500 flex items-center justify-between">
                         <span>Обновлено:</span>
                         <span class="font-medium text-slate-700">${escapeHtml(kiosk.timeInfo.formatted)}</span>
                     </div>
@@ -1809,17 +3127,25 @@
         }
 
         function renderMapMarkers() {
-            if (!map || !clusterGroup || !plainMarkerGroup) return;
+            if (!map || !plainMarkerGroup) return;
 
-            clusterGroup.clearLayers();
+            if (clusterGroup) clusterGroup.clearLayers();
             plainMarkerGroup.clearLayers();
             markersById = {};
 
-            const targetGroup = state.clusteringEnabled ? clusterGroup : plainMarkerGroup;
+            const useClusters = Boolean(state.clusteringEnabled && clusterGroup && !state.tripPlanner.mapOverlayActive);
+            const targetGroup = useClusters ? clusterGroup : plainMarkerGroup;
             const markersToAdd = [];
 
-            for (let i = 0; i < state.filteredKiosks.length; i++) {
-                const k = state.filteredKiosks[i];
+            let sourceList = state.filteredKiosks;
+            if (state.tripPlanner.mapOverlayActive && state.savedShiftPlans.length > 0) {
+                const shiftIds = new Set();
+                state.savedShiftPlans.forEach(p => (p.kioskIds || []).forEach(id => shiftIds.add(id)));
+                sourceList = state.kiosks.filter(k => shiftIds.has(k.id));
+            }
+
+            for (let i = 0; i < sourceList.length; i++) {
+                const k = sourceList[i];
                 if (!k.hasValidCoords) continue;
 
                 const marker = L.marker([k.lat, k.lng], {
@@ -1831,7 +3157,7 @@
                 markersToAdd.push(marker);
             }
 
-            if (state.clusteringEnabled) {
+            if (useClusters && typeof clusterGroup.addLayers === 'function') {
                 clusterGroup.addLayers(markersToAdd);
             } else {
                 markersToAdd.forEach(m => targetGroup.addLayer(m));
@@ -1875,13 +3201,13 @@
             for (let i = start; i < end; i++) {
                 const k = state.filteredKiosks[i];
                 const meta = STATUS_META[k.status] || STATUS_META.full;
+                const shiftInfo = getAssignedShiftPlanInfo(k.id);
 
                 const card = document.createElement('div');
                 card.className = 'bg-white hover:border-sky-300 border border-slate-200/90 rounded-2xl p-3 shadow-2xs transition cursor-pointer flex items-center gap-3 active:scale-[0.99]';
                 card.onclick = () => focusKioskOnMap(k.id);
 
                 card.innerHTML = `
-                    <!-- Индикатор-бак -->
                     <div class="w-11 h-14 rounded-xl bg-slate-100 border border-slate-200 relative overflow-hidden shrink-0 flex items-end">
                         <div class="tank-fill w-full" style="height:${k.levelInfo.percent}%; background:${meta.barColor};"></div>
                         <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-0.5">
@@ -1889,11 +3215,17 @@
                         </div>
                     </div>
 
-                    <!-- Информация -->
                     <div class="min-w-0 flex-1">
                         <div class="flex items-start justify-between gap-2">
                             <div class="font-bold text-xs sm:text-sm text-slate-900 truncate">${escapeHtml(k.address)}</div>
                             <span class="text-xs sm:text-sm font-extrabold text-slate-900 shrink-0">${escapeHtml(k.levelInfo.displayValue)}</span>
+                        </div>
+
+                        <div class="mt-1 flex items-center gap-1.5 flex-wrap text-[10px]">
+                            <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">${escapeHtml(k.direction)}</span>
+                            <span class="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-semibold">Авто: ${escapeHtml(k.truckAccess.label)}</span>
+                            ${k.avrDailyLiters > 0 ? `<span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 font-semibold">AVR: ${k.avrDailyLiters} л/д</span>` : ''}
+                            ${shiftInfo ? `<span class="px-1.5 py-0.2 rounded text-white font-bold" style="background:${shiftInfo.plan.color};">Авто ${escapeHtml(shiftInfo.plan.plate || shiftInfo.plan.machineLabel)}</span>` : ''}
                         </div>
 
                         <div class="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
@@ -1934,7 +3266,7 @@
             }
 
             const latLng = marker.getLatLng();
-            if (state.clusteringEnabled && clusterGroup) {
+            if (state.clusteringEnabled && clusterGroup && !state.tripPlanner.mapOverlayActive) {
                 clusterGroup.zoomToShowLayer(marker, () => {
                     marker.openPopup();
                 });
@@ -1945,7 +3277,7 @@
         }
 
         /* =========================================================================
-           МОДАЛЬНЫЕ ОКНА АДМИНИСТРАТОРА (Google Таблица и Проверка координат)
+           МОДАЛЬНЫЕ ОКНА АДМИНИСТРАТОРА
            ========================================================================= */
         function openSheetsModal() {
             const urlInput = document.getElementById('sheetUrlInput');
@@ -2047,9 +3379,6 @@
             URL.revokeObjectURL(url);
         }
 
-        /* =========================================================================
-           СВАЙПЫ ДЛЯ МОБИЛЬНОЙ ПАНЕЛИ (BOTTOM SHEET)
-           ========================================================================= */
         function initMobileSheetTouchGestures() {
             const handle = document.getElementById('mobileSheetHandle');
             if (!handle) return;
@@ -2072,9 +3401,6 @@
             }, { passive: true });
         }
 
-        /* =========================================================================
-           ЗАПУСК ПРИЛОЖЕНИЯ И РЕГИСТРАЦИЯ SERVICE WORKER
-           ========================================================================= */
         window.addEventListener('DOMContentLoaded', () => {
             if (window.lucide && typeof window.lucide.createIcons === 'function') {
                 window.lucide.createIcons();
@@ -2097,6 +3423,7 @@
             initMap();
             initMobileSheetTouchGestures();
             applyUserRoleUI();
+            updateSavedShiftHeaderBadge();
             toggleMobileSheet(false);
             setupAutoRefreshTimer();
             fetchGoogleSheetData(true);
