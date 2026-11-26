@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>АкваМонитор — Мониторинг сети водоматов</title>
+
+    <!-- PWA мета-теги для Android APK -->
     <meta name="theme-color" content="#0284c7">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="АкваМонитор">
+    <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%230ea5e9'/%3E%3Cstop offset='100%25' stop-color='%230284c7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='112' fill='url(%23g)'/%3E%3Cpath d='M256 96C256 96 144 224 144 312C144 373.856 194.144 424 256 424C317.856 424 368 373.856 368 312C368 224 256 96 256 96Z' fill='%23ffffff'/%3E%3Cpath d='M168 318C196 300 226 334 256 318C286 302 316 334 344 318C341 364 303 400 256 400C209 400 171 364 168 318Z' fill='%2338bdf8'/%3E%3C/svg%3E">
-    <title>АкваМонитор — Мониторинг уровня воды в водоматах</title>
 
     <!-- Шрифт Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,28 +21,23 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Leaflet CSS & JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Иконки Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Leaflet.markercluster CSS & JS для быстрой кластеризации 300+ точек -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
-
-    <!-- PapaParse для надёжного разбора CSV -->
-    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+    <!-- Карта Leaflet + кластеризация маркеров (с тайлами 2ГИС) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <style>
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            overflow-x: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overscroll-behavior: none;
         }
 
-        /* Кастомный скроллбар */
+        /* Тонкая полоса прокрутки для списка */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -56,611 +53,617 @@
             background: #94a3b8;
         }
 
-        /* Кастомный каплевидный маркер водомата на карте */
-        .water-pin-wrapper {
+        /* Кастомные маркеры-капли с визуальным уровнем заполнения */
+        .aqua-marker-wrapper {
             background: transparent;
             border: none;
         }
-
-        .water-pin {
-            width: 50px;
-            height: 50px;
-            border-radius: 50% 50% 50% 0;
+        .aqua-pin {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            border-radius: 50% 50% 50% 4px;
             transform: rotate(-45deg);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
-            border: 3px solid #ffffff;
-            background-color: #ffffff;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            position: relative;
-        }
-
-        .water-pin:hover,
-        .water-pin.is-active {
-            transform: rotate(-45deg) scale(1.14);
-            box-shadow: 0 10px 22px rgba(14, 165, 233, 0.45);
-            z-index: 900;
-        }
-
-        .water-pin-inner {
-            transform: rotate(45deg);
-            width: 100%;
-            height: 100%;
-            border-radius: 9999px;
             overflow: hidden;
+            background: #1e293b;
+            border: 2.5px solid #ffffff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .aqua-pin:hover {
+            transform: rotate(-45deg) scale(1.1);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.45);
+        }
+        /* Неповёрнутый контейнер внутри капли, чтобы уровень воды рос строго снизу вверх */
+        .aqua-pin-upright {
             position: relative;
+            width: 62px;
+            height: 62px;
+            transform: rotate(45deg);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            user-select: none;
-            background-color: #f8fafc;
+            flex-shrink: 0;
+            pointer-events: none;
         }
-
-        .water-pin-liquid {
+        .aqua-pin-water {
             position: absolute;
             left: 0;
             right: 0;
             bottom: 0;
-            transition: height 0.4s ease, background-color 0.3s ease;
-            z-index: 1;
+            transition: height 0.4s ease;
         }
-
-        .water-pin-wave {
+        .aqua-pin-water-line {
             position: absolute;
-            top: -5px;
-            left: -25%;
-            width: 150%;
-            height: 8px;
-            display: block;
-            pointer-events: none;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.65);
         }
-
-        .water-pin-label {
+        .aqua-pin-content {
             position: relative;
             z-index: 2;
-            text-align: center;
-            line-height: 1.05;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 2px;
+            line-height: 1.05;
+            color: #ffffff;
+            text-align: center;
+            width: 38px;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .aqua-pin-id {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+        }
+        .aqua-pin-sub {
+            font-size: 9px;
+            font-weight: 700;
+            opacity: 0.98;
+            margin-top: 1px;
+            white-space: nowrap;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+        }
+        .aqua-pin-sub.is-compact {
+            font-size: 7.5px;
+            letter-spacing: -0.03em;
         }
 
-        /* Пульсация для пустых или Offline точек */
-        @keyframes pulse-ring {
-            0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65);
-            }
-            70% {
-                box-shadow: 0 0 0 13px rgba(239, 68, 68, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-        }
-
-        @keyframes pulse-offline {
-            0% {
-                box-shadow: 0 0 0 0 rgba(71, 85, 105, 0.65);
-            }
-            70% {
-                box-shadow: 0 0 0 13px rgba(71, 85, 105, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(71, 85, 105, 0);
-            }
-        }
-
-        .water-pin.is-critical {
-            animation: pulse-ring 2s infinite;
-        }
-
-        .water-pin.is-offline {
-            animation: pulse-offline 2s infinite;
-        }
-
-        /* Кастомные кластеры для 300+ водоматов */
-        .aqua-cluster-wrapper {
+        /* Кастомный стиль кластеров */
+        .aqua-cluster-icon {
             background: transparent;
             border: none;
         }
-
-        .aqua-cluster {
+        .aqua-cluster-badge {
+            width: 42px;
+            height: 42px;
             border-radius: 9999px;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #ffffff;
             font-weight: 800;
+            font-size: 13px;
+            color: #ffffff;
             border: 3px solid #ffffff;
-            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
-            transition: transform 0.15s ease;
-            user-select: none;
-            position: relative;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.28);
         }
 
-        .aqua-cluster:hover {
-            transform: scale(1.08);
-        }
-
-        .aqua-cluster-alert-dot {
-            position: absolute;
-            top: -3px;
-            right: -3px;
-            width: 13px;
-            height: 13px;
-            border-radius: 9999px;
-            background-color: #ef4444;
-            border: 2px solid #ffffff;
-        }
-
-        /* Стилизация всплывающей карточки Leaflet */
+        /* Оформление всплывающего окна Leaflet */
         .leaflet-popup-content-wrapper {
-            padding: 0;
-            border-radius: 16px;
+            border-radius: 18px !important;
+            padding: 0 !important;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.22) !important;
             overflow: hidden;
-            box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
         }
         .leaflet-popup-content {
-            margin: 0;
-            width: 300px !important;
+            margin: 0 !important;
+            min-width: 260px;
+            max-width: 295px;
         }
         .leaflet-popup-close-button {
-            color: #ffffff !important;
-            top: 10px !important;
-            right: 10px !important;
-            width: 24px !important;
-            height: 24px !important;
-            background: rgba(15, 23, 42, 0.28) !important;
-            border-radius: 9999px !important;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px !important;
-        }
-        .leaflet-popup-close-button:hover {
-            background: rgba(15, 23, 42, 0.5) !important;
+            top: 8px !important;
+            right: 8px !important;
+            width: 26px !important;
+            height: 26px !important;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.9) !important;
+            color: #475569 !important;
+            font-size: 18px !important;
+            line-height: 24px !important;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
         }
 
         /* Плавная анимация уровня воды в цилиндрическом баке */
         .tank-fill {
             transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
         }
+
+        /* Анимация вращения иконки обновления */
+        @keyframes spin360 {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-fast {
+            animation: spin360 0.8s linear infinite;
+        }
+
+        /* Мобильная нижняя выдвижная панель (Bottom Sheet) для карты на весь экран */
+        @media (max-width: 1023px) {
+            #sidebarPanel {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 78vh;
+                max-height: calc(100vh - 60px);
+                border-top-left-radius: 24px;
+                border-top-right-radius: 24px;
+                border-top: 1px solid #cbd5e1;
+                border-right: none;
+                box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.18);
+                transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+                z-index: 35;
+                will-change: transform;
+            }
+
+            #sidebarPanel.is-collapsed {
+                transform: translateY(calc(100% - 68px));
+            }
+
+            #sidebarPanel:not(.is-collapsed) {
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-100 text-slate-800 h-[100dvh] flex flex-col overflow-hidden">
 
     <!-- ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
-    <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0 shadow-2xs">
-        <!-- Логотип и статус -->
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white flex items-center justify-center shadow-sm shadow-sky-500/30 shrink-0">
+    <header class="bg-white border-b border-slate-200 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 z-40 shrink-0 shadow-xs relative">
+        <!-- Логотип и статус источника -->
+        <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white flex items-center justify-center shadow-sm shadow-sky-500/30 shrink-0">
                 <i data-lucide="droplets" class="w-5 h-5"></i>
             </div>
-            <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-slate-900">АкваМонитор</h1>
-                    <span id="sourceBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <div class="min-w-0">
+                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                    <h1 class="font-extrabold text-sm sm:text-lg tracking-tight text-slate-900 truncate">АкваМонитор</h1>
+                    <span id="sourceBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                        <span>Демо-режим</span>
+                        <span>Загрузка...</span>
                     </span>
-                    <button id="debugHeaderBtn" onclick="openDebugModal()" class="admin-only-control hidden inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition" title="Показать строки таблицы без координат">
+                    <button id="debugHeaderBtn" onclick="openDebugModal(); toggleMobileMenu(false);" class="admin-only-control hidden items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition" title="Показать строки таблицы без координат">
                         <i data-lucide="bug" class="w-3 h-3"></i>
                         <span>Без коорд.: <b id="debugUnmatchedCount">0</b></span>
                     </button>
                 </div>
-                <p class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <p class="hidden sm:flex text-[11px] text-slate-500 mt-0.5 items-center gap-1.5 flex-wrap">
                     <span>Мониторинг сети водоматов</span>
                     <span>•</span>
-                    <span id="lastSyncText">Синхронизация: только что</span>
+                    <span id="lastSyncText">Синхронизация: ожидание...</span>
                 </p>
             </div>
         </div>
 
-        <!-- Кнопки управления -->
-        <div class="flex items-center gap-2 flex-wrap">
-            <!-- Переключатель роли: Администратор / Водитель -->
-            <button id="btnRoleSwitch" onclick="handleRoleSwitchClick()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 transition shadow-2xs" title="Переключить режим отображения (Администратор / Водитель)">
-                <i data-lucide="shield-check" id="roleIcon" class="w-4 h-4 text-emerald-600"></i>
-                <span id="roleLabel">Администратор</span>
-            </button>
-
-            <!-- Кнопка смены PIN-кода (только Администратор) -->
-            <button onclick="openChangePinModal()" class="admin-only-control flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition shadow-2xs" title="Изменить PIN-код администратора">
-                <i data-lucide="key-round" class="w-4 h-4 text-amber-600"></i>
-                <span class="hidden xl:inline">PIN-код</span>
-            </button>
-
-            <!-- Переключатель кластеризации -->
-            <button id="btnClusterToggle" onclick="toggleClustering()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 transition shadow-2xs" title="Группировать маркеры в кластеры для высокой скорости">
-                <i data-lucide="layers" class="w-4 h-4 text-sky-600"></i>
-                <span id="clusterLabel">Кластеры: ВКЛ</span>
-            </button>
-
-            <!-- Кнопка ручного обновления данных -->
-            <button id="btnRefresh" onclick="manualRefresh()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition shadow-2xs" title="Обновить данные из таблицы">
+        <!-- Правая группа кнопок: Обновить + Раскрывающееся Меню -->
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 relative">
+            <button id="btnRefresh" onclick="manualRefresh()" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-slate-700 transition" title="Обновить данные из таблицы">
                 <i data-lucide="refresh-cw" id="refreshIcon" class="w-4 h-4 text-sky-600"></i>
-                <span class="hidden xl:inline">Обновить</span>
+                <span class="hidden md:inline">Обновить</span>
             </button>
 
-            <!-- Кнопка проверки строк без координат (только Администратор) -->
-            <button onclick="openDebugModal()" class="admin-only-control flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 transition shadow-2xs" title="Проверка строк таблицы без координат">
-                <i data-lucide="git-compare" class="w-4 h-4 text-purple-600"></i>
-                <span class="hidden sm:inline">Проверка коорд.</span>
+            <button id="btnToggleMenu" onclick="toggleMobileMenu()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 transition" aria-expanded="false" aria-controls="collapsibleNavMenu" title="Открыть меню управления">
+                <i data-lucide="menu" class="w-4 h-4 text-slate-700"></i>
+                <span>Меню</span>
+                <i data-lucide="chevron-down" id="menuChevron" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200"></i>
             </button>
 
-            <!-- Кнопка Google Таблицы (только Администратор) -->
-            <button onclick="openSheetsModal()" class="admin-only-control flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-sky-600 hover:bg-sky-700 text-white transition shadow-sm shadow-sky-600/20">
-                <i data-lucide="table" class="w-4 h-4"></i>
-                <span>Google Таблица</span>
-            </button>
+            <!-- РАСКРЫВАЮЩЕЕСЯ ВЫПАДАЮЩЕЕ МЕНЮ -->
+            <div id="collapsibleNavMenu" class="hidden absolute right-0 top-full mt-2 w-64 sm:w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 space-y-1">
+                <!-- Время синхронизации на мобильном -->
+                <div class="px-2.5 py-1.5 text-[11px] text-slate-400 font-medium border-b border-slate-100 sm:hidden" id="mobileLastSyncText">
+                    Синхронизация: ожидание...
+                </div>
+
+                <!-- Переключатель роли: Администратор / Водитель -->
+                <button id="btnRoleSwitch" onclick="handleRoleSwitchClick(); toggleMobileMenu(false);" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="shield-check" id="roleIcon" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Режим</span>
+                    </span>
+                    <span id="roleLabel" class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px]">Администратор</span>
+                </button>
+
+                <!-- Переключатель группировки (кластеров) -->
+                <button id="btnClusterToggle" onclick="toggleClustering()" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border border-sky-200 bg-sky-50/70 hover:bg-sky-100 text-sky-900 transition">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="layers" class="w-4 h-4 text-sky-600"></i>
+                        <span>Группировка точек</span>
+                    </span>
+                    <span id="clusterLabel" class="text-[11px] font-bold text-sky-700">ВКЛ</span>
+                </button>
+
+                <!-- Кнопка показа/скрытия легенды на карте -->
+                <button id="btnLegendToggle" onclick="toggleMapLegend(); toggleMobileMenu(false);" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-slate-500"></i>
+                        <span>Легенда карты</span>
+                    </span>
+                    <span id="legendToggleLabel" class="text-[11px] font-semibold text-emerald-600">Показана</span>
+                </button>
+
+                <div class="admin-only-control border-t border-slate-100 my-1"></div>
+
+                <!-- Скопировать ссылку для водителя (только Администратор) -->
+                <button onclick="copyDriverLink(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition text-left">
+                    <i data-lucide="share-2" class="w-4 h-4 text-sky-600 shrink-0"></i>
+                    <span>Ссылка для водителя</span>
+                </button>
+
+                <!-- Смена PIN-кода (только Администратор) -->
+                <button onclick="openChangePinModal(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 transition text-left">
+                    <i data-lucide="key-round" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                    <span>Изменить PIN-код</span>
+                </button>
+
+                <!-- Проверка строк без координат (только Администратор) -->
+                <button onclick="openDebugModal(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-purple-800 hover:bg-purple-50 transition text-left">
+                    <i data-lucide="git-compare" class="w-4 h-4 text-purple-600 shrink-0"></i>
+                    <span>Проверка координат</span>
+                </button>
+
+                <!-- Настройка Google Таблицы (только Администратор) -->
+                <button onclick="openSheetsModal(); toggleMobileMenu(false);" class="admin-only-control w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white transition text-left mt-1">
+                    <i data-lucide="table" class="w-4 h-4 shrink-0"></i>
+                    <span>Настроить Google Таблицу</span>
+                </button>
+            </div>
         </div>
     </header>
 
     <!-- ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ -->
     <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
 
-        <!-- БОКОВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ (СПИСОК И СВОДКА) -->
-        <aside id="sidebarPanel" class="w-full lg:w-[420px] xl:w-[450px] bg-white border-r border-slate-200 flex flex-col h-[52vh] lg:h-full shrink-0 z-20 order-2 lg:order-1">
-            
+        <!-- БОКОВАЯ ПАНЕЛЬ (Десктоп) / ВЫДВИЖНАЯ НИЖНЯЯ ПАНЕЛЬ (Мобильный) -->
+        <aside id="sidebarPanel" class="is-collapsed w-full lg:w-[410px] xl:w-[440px] bg-white lg:border-r border-slate-200 flex flex-col lg:h-full shrink-0 order-2 lg:order-1">
+
+            <!-- Ручка раскрытия списка для мобильных устройств -->
+            <div id="mobileSheetHandle" onclick="toggleMobileSheet()" class="lg:hidden px-4 pt-2 pb-2.5 bg-white border-b border-slate-100 rounded-t-3xl cursor-pointer select-none flex flex-col gap-1.5 shrink-0">
+                <div class="w-10 h-1 rounded-full bg-slate-300 mx-auto"></div>
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="text-xs font-extrabold text-slate-900">Список киосков</span>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200" id="mobileSheetBadgeCount">0</span>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-200" id="mobileSheetAttentionBadge">0 вним.</span>
+                    </div>
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 shrink-0">
+                        <span id="mobileSheetActionText">Развернуть</span>
+                        <i data-lucide="chevron-up" id="mobileSheetChevron" class="w-4 h-4 transition-transform duration-200"></i>
+                    </span>
+                </div>
+            </div>
+
             <!-- Сводные KPI-карточки -->
-            <div class="p-3.5 border-b border-slate-100 bg-slate-50/70">
-                <div class="grid grid-cols-3 gap-2.5">
+            <div class="p-3 border-b border-slate-100 bg-slate-50/70 shrink-0">
+                <div class="grid grid-cols-3 gap-2">
                     <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
-                        <div class="text-[11px] font-medium text-slate-500">Всего точек</div>
-                        <div class="text-xl font-extrabold text-slate-900 mt-0.5" id="statTotal">0</div>
+                        <div class="text-[11px] font-medium text-slate-500 truncate">Всего в работе</div>
+                        <div id="statTotal" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-0.5">0</div>
                     </div>
-                    <div class="bg-white p-2.5 rounded-xl border border-red-200/80 shadow-2xs">
-                        <div class="text-[11px] font-medium text-red-600 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                            <span>Требуют внимания</span>
-                        </div>
-                        <div class="text-xl font-extrabold text-red-600 mt-0.5" id="statAttention">0</div>
-                    </div>
-                    <div class="bg-white p-2.5 rounded-xl border border-sky-200/80 shadow-2xs">
-                        <div class="text-[11px] font-medium text-sky-700">Средний уровень</div>
-                        <div class="text-xl font-extrabold text-sky-600 mt-0.5" id="statAvgLevel">0%</div>
+                    <button onclick="setFilter('attention')" class="bg-white hover:bg-red-50/60 p-2.5 rounded-xl border border-red-200/80 shadow-2xs text-left transition">
+                        <div class="text-[11px] font-medium text-red-600 truncate">Внимание</div>
+                        <div id="statAttention" class="text-lg sm:text-xl font-extrabold text-red-600 mt-0.5">0</div>
+                    </button>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                        <div class="text-[11px] font-medium text-slate-500 truncate">Ср. уровень</div>
+                        <div id="statAvgLevel" class="text-lg sm:text-xl font-extrabold text-sky-600 mt-0.5">0%</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Поиск -->
-                <div class="relative mt-3">
+            <!-- Поиск и фильтры -->
+            <div class="p-3 border-b border-slate-100 space-y-2.5 bg-white shrink-0">
+                <div class="relative">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                    <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Поиск по ID, названию или адресу..." class="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 transition">
-                    <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5">
+                    <input
+                        id="searchInput"
+                        type="text"
+                        oninput="handleSearchInput(this.value)"
+                        placeholder="Поиск по номеру ID или адресу..."
+                        class="w-full pl-9 pr-9 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-xs sm:text-sm transition"
+                    >
+                    <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
 
-                <!-- Быстрые фильтры -->
-                <div class="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-1 custom-scrollbar">
-                    <button onclick="setFilter('all')" data-filter="all" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white transition whitespace-nowrap">
-                        Все (<span id="countAll">0</span>)
+                <!-- Фильтры: Все | Требуют внимания | Пустые | Низкий | Без связи | Исключения -->
+                <div id="filterButtonsContainer" class="flex items-center gap-1.5 flex-wrap">
+                    <button data-filter="all" onclick="setFilter('all')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
+                        <span>Все</span>
+                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
-                    <button onclick="setFilter('attention')" data-filter="attention" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200/70 transition whitespace-nowrap flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                        <span>Требуют внимания (<span id="countAttention">0</span>)</span>
+                    <button data-filter="attention" onclick="setFilter('attention')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
+                        <span>Требуют внимания</span>
+                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
-                    <button onclick="setFilter('critical')" data-filter="critical" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200/70 transition whitespace-nowrap flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                        <span>Пустые (<span id="countCritical">0</span>)</span>
+                    <button data-filter="critical" onclick="setFilter('critical')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
+                        <span>Пустые</span>
+                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
-                    <button onclick="setFilter('low')" data-filter="low" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200/70 transition whitespace-nowrap flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-[#ea9999] border border-[#e06666]"></span>
-                        <span>Низкий (<span id="countLow">0</span>)</span>
+                    <button data-filter="low" onclick="setFilter('low')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
+                        <span>Низкий</span>
+                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
-                    <button onclick="setFilter('offline')" data-filter="offline" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200/70 transition whitespace-nowrap flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-slate-800"></span>
-                        <span>Без связи (<span id="countOffline">0</span>)</span>
+                    <button data-filter="offline" onclick="setFilter('offline')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
+                        <span>Без связи</span>
+                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
-                    <button onclick="setFilter('excluded')" data-filter="excluded" id="filterBtnExcluded" class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200/70 transition whitespace-nowrap flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-violet-500"></span>
-                        <span>Исключения (<span id="countExcluded">0</span>)</span>
+                    <button data-filter="excluded" onclick="setFilter('excluded')" class="filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1">
+                        <span>Исключения</span>
+                        <span class="filter-count px-1.5 py-0.2 rounded-full text-[10px]">0</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Заголовок списка -->
-            <div class="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-medium text-slate-500">
-                <span>Водоматы (пустые и без связи наверху)</span>
-                <span>Показано: <b id="shownCount" class="text-slate-700">0</b></span>
-            </div>
-
-            <!-- Прокручиваемый список карточек водоматов (порционный рендеринг) -->
-            <div id="kioskListContainer" onscroll="handleListScroll(this)" class="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar bg-slate-50/40">
-                <!-- Карточки создаются порциями безопасно через DOM API -->
+            <!-- Прокручиваемый список карточек водоматов -->
+            <div id="kioskListContainer" onscroll="handleListScroll(this)" class="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar bg-slate-50/40 pb-6">
+                <!-- Карточки добавляются программно -->
             </div>
         </aside>
 
-        <!-- ИНТЕРАКТИВНАЯ КАРТА -->
-        <main class="flex-1 relative h-[48vh] lg:h-full order-1 lg:order-2">
+        <!-- ИНТЕРАКТИВНАЯ КАРТА (на мобильном почти на весь экран) -->
+        <main class="flex-1 relative w-full h-full order-1 lg:order-2">
             <div id="map" class="w-full h-full z-10"></div>
 
-            <!-- Кнопка центрирования всех точек -->
-            <button onclick="fitAllMarkers()" class="absolute top-3 left-14 z-20 bg-white/95 backdrop-blur-xs hover:bg-white text-slate-700 px-3 py-2 rounded-xl shadow-md border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Показать все водоматы на экране">
+            <!-- Кнопка центрирования всей сети -->
+            <button onclick="fitAllMarkers()" class="absolute top-3 left-14 z-20 bg-white/95 backdrop-blur-xs hover:bg-white active:scale-95 text-slate-700 px-3 py-2 rounded-xl shadow-md border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Показать все водоматы на экране">
                 <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-sky-600"></i>
                 <span>Вся сеть</span>
             </button>
 
-            <!-- Легенда карты -->
-            <div class="hidden sm:block absolute bottom-5 left-3 z-20 bg-white/95 backdrop-blur-xs p-3 rounded-2xl shadow-lg border border-slate-200/90 text-xs space-y-1.5">
-                <div class="font-bold text-slate-800 text-[11px] uppercase tracking-wider mb-1">Заполнение маркера</div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 shrink-0"></span>
-                    <span><b>100%</b> : HI / FULL / <b>&gt; 80%</b></span>
+            <!-- Кнопка быстрого вызова списка/фильтров на телефоне (над свёрнутой полосой) -->
+            <button id="btnMobileOpenList" onclick="toggleMobileSheet(true)" class="lg:hidden absolute bottom-20 right-3 z-20 bg-slate-900/90 backdrop-blur-xs hover:bg-slate-900 active:scale-95 text-white px-3.5 py-2.5 rounded-2xl shadow-lg text-xs font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="list-filter" class="w-4 h-4 text-sky-400"></i>
+                <span>Фильтры</span>
+            </button>
+
+            <!-- Легенда карты (отображается всегда, можно свернуть крестиком или через Меню) -->
+            <div id="mapLegendCard" class="absolute bottom-20 lg:bottom-5 left-3 z-20 bg-white/95 backdrop-blur-xs p-2.5 sm:p-3 rounded-2xl shadow-lg border border-slate-200/90 text-[11px] sm:text-xs space-y-1 sm:space-y-1.5 max-w-[195px] sm:min-w-[195px]">
+                <div class="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
+                    <span class="font-bold text-slate-800">Обозначения</span>
+                    <button onclick="toggleMapLegend(false)" class="text-slate-400 hover:text-slate-700 p-0.5 rounded" title="Скрыть легенду">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="w-3.5 h-3.5 rounded-full border border-[#ffe599] overflow-hidden flex flex-col justify-end shrink-0"><span class="w-full h-3/4 bg-[#ffe599]"></span></span>
-                    <span><b>75%</b> : MID / <b>40% – 80%</b></span>
+                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500 border border-white shadow-xs shrink-0"></span>
+                    <span class="text-slate-700 leading-tight">Пусто / DOWN (&lt;200л)</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="w-3.5 h-3.5 rounded-full border border-[#ea9999] overflow-hidden flex flex-col justify-end shrink-0"><span class="w-full h-1/4 bg-[#ea9999]"></span></span>
-                    <span><b>25%</b> : LOW / <b>от 200л до 40%</b></span>
+                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-slate-300 shadow-xs shrink-0" style="background:#ea9999;"></span>
+                    <span class="text-slate-700 leading-tight">LOW / 200л–40% (25%)</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="w-3.5 h-3.5 rounded-full border-2 border-red-500 bg-white shrink-0"></span>
-                    <span><b>0%</b> : DOWN / <b>&lt; 200л</b></span>
+                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-slate-300 shadow-xs shrink-0" style="background:#ffe599;"></span>
+                    <span class="text-slate-700 leading-tight">MID / 40%–80% (75%)</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-800 bg-slate-700 shrink-0"></span>
-                    <span><b>OFF</b>: нет связи <b>&gt; 60 мин</b></span>
+                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 border border-white shadow-xs shrink-0"></span>
+                    <span class="text-slate-700 leading-tight">HI / FULL (&ge;80%)</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="w-3.5 h-3.5 rounded-full bg-violet-500 shrink-0"></span>
-                    <span>Исключён / временно не работает</span>
+                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-purple-600 border border-white shadow-xs shrink-0"></span>
+                    <span class="text-slate-700 leading-tight">Без связи (&gt;60 мин)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-500 border border-white shadow-xs shrink-0"></span>
+                    <span class="text-slate-700 leading-tight">Исключение</span>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: ПОДКЛЮЧЕНИЕ GOOGLE ТАБЛИЦ -->
-    <div id="sheetsModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
-            <!-- Шапка модального окна -->
-            <div class="px-6 py-4 bg-gradient-to-r from-sky-600 to-cyan-600 text-white flex items-center justify-between">
+    <!-- МОДАЛЬНОЕ ОКНО: НАСТРОЙКА GOOGLE ТАБЛИЦЫ -->
+    <div id="sheetsModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+                    <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
                         <i data-lucide="table" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h2 class="font-bold text-lg leading-tight">Подключение Google Таблицы</h2>
-                        <p class="text-xs text-sky-100">Онлайн-синхронизация уровней воды и времени обновления</p>
+                        <h2 class="font-bold text-slate-900 text-base">Настройка Google Таблицы</h2>
+                        <p class="text-xs text-slate-500">Координаты (Широта/Долгота) и уровни загружаются автоматически</p>
                     </div>
                 </div>
-                <button onclick="closeSheetsModal()" class="p-1.5 rounded-xl hover:bg-white/15 text-white transition">
+                <button onclick="closeModal('sheetsModal')" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <!-- Тело модального окна -->
-            <div class="p-6 space-y-5 max-h-[82vh] overflow-y-auto custom-scrollbar">
-                <!-- Поле ссылки -->
+            <div class="p-5 space-y-4">
                 <div>
-                    <label for="sheetUrlInput" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                        Ссылка на Google Таблицу (обычная ссылка из браузера или CSV)
-                    </label>
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="url" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/..." class="flex-1 px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500">
-                        <button onclick="saveAndConnectSheet()" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm rounded-xl transition shadow-sm shrink-0 flex items-center justify-center gap-1.5">
-                            <i data-lucide="link" class="w-4 h-4"></i>
-                            <span>Подключить</span>
-                        </button>
-                    </div>
-                    <p class="text-[11px] text-slate-500 mt-1.5">
-                        Поддерживаются ссылки <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">.../edit#gid=0</code> (доступ «Все, у кого есть ссылка») и опубликованные CSV-ссылки <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">.../pub?output=csv</code>.
-                    </p>
+                    <label for="sheetUrlInput" class="block text-xs font-semibold text-slate-700 mb-1.5">Ссылка на Google Таблицу (доступ по ссылке на просмотр)</label>
+                    <input
+                        id="sheetUrlInput"
+                        type="url"
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-xs sm:text-sm"
+                    >
                 </div>
 
-                <!-- Настройка интервала автообновления таблицы -->
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                        <div class="text-sm font-bold text-slate-800">Автообновление Google Таблицы</div>
-                        <div class="text-xs text-slate-500">Фоновый опрос остатков воды в таблице</div>
-                    </div>
-                    <select id="autoRefreshSelect" onchange="changeRefreshInterval(this.value)" class="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-sky-500">
-                        <option value="0">Выключено</option>
-                        <option value="60" selected>Каждую 1 минуту</option>
+                <div>
+                    <label for="refreshIntervalSelect" class="block text-xs font-semibold text-slate-700 mb-1.5">Интервал автообновления данных</label>
+                    <select id="refreshIntervalSelect" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-xs sm:text-sm bg-white">
+                        <option value="30">Каждые 30 секунд</option>
+                        <option value="60">Каждую 1 минуту</option>
+                        <option value="180">Каждые 3 минуты</option>
                         <option value="300">Каждые 5 минут</option>
-                        <option value="900">Каждые 15 минут</option>
+                        <option value="0">Отключить автообновление</option>
                     </select>
                 </div>
 
-                <!-- Шаблон CSV и правила колонок -->
-                <div class="bg-sky-50/80 border border-sky-200/80 rounded-xl p-4 space-y-3">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <h3 class="text-sm font-bold text-sky-900 flex items-center gap-1.5">
-                            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-sky-600"></i>
-                            <span>Колонки Google Таблицы</span>
-                        </h3>
-                        <button onclick="downloadCsvTemplate()" class="px-3 py-1.5 bg-white hover:bg-sky-100 text-sky-700 border border-sky-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs">
-                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                            <span>Скачать шаблон CSV</span>
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto bg-white rounded-lg border border-sky-200/70 p-2.5 text-[11px] font-mono text-slate-800 font-semibold">
-                        ID | Название | Полный адрес | Уровень | Макс. объем (л) | Время | Дата | Исключения | Широта | Долгота
-                    </div>
-                    <ul class="text-xs text-slate-600 space-y-1.5 leading-relaxed">
-                        <li>• <b>Уровень:</b> принимает как литры (например, <code class="bg-white px-1 rounded border border-slate-200">1450</code> или <code class="bg-white px-1 rounded border border-slate-200">320 л</code>), так и текстовые коды датчиков: <b>DOWN</b> (0%), <b>LOW</b> (25%), <b>MID</b> (50%), <b>HI</b> (75%), <b>FULL</b> (100%).</li>
-                        <li>• <b>Время и Дата:</b> используются для расчёта статуса связи. Если с момента обновления (<code class="bg-white px-1 rounded border border-slate-200">ЧЧ:ММ</code> + <code class="bg-white px-1 rounded border border-slate-200">ДД.ММ.ГГГГ</code>) прошло <b>более 60 минут</b>, точка автоматически получает статус <b>Offline</b>.</li>
-                        <li>• <b>Исключения:</b> любое непустое значение (кроме <code class="bg-white px-1 rounded border border-slate-200">нет</code>, <code class="bg-white px-1 rounded border border-slate-200">0</code>, <code class="bg-white px-1 rounded border border-slate-200">false</code>, <code class="bg-white px-1 rounded border border-slate-200">-</code>) — например <code class="bg-white px-1 rounded border border-slate-200">да</code>, <code class="bg-white px-1 rounded border border-slate-200">ремонт</code>, <code class="bg-white px-1 rounded border border-slate-200">зима</code> — переводит киоск в нейтральный статус и исключает из аварий и среднего расчёта.</li>
-                    </ul>
+                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-[11px] text-slate-600 space-y-1 leading-relaxed">
+                    <p><b>Поддерживаемые колонки:</b> Номер (ID), Адрес, Уровень (литры или <code>DOWN/LOW/MID/HI/FULL</code>), Время обновления, Исключение, <b>Широта</b>, <b>Долгота</b>.</p>
                 </div>
+            </div>
 
-                <!-- Нижняя панель кнопок -->
-                <div class="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="resetToDemoMode()" class="text-xs font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-100 transition">
-                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                            <span>Демо (9 точек)</span>
-                        </button>
-                        <button onclick="generateStressTestDemo(320)" class="text-xs font-semibold text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-sky-200 transition">
-                            <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-                            <span>Тест нагрузки (320 точек)</span>
-                        </button>
-                    </div>
-                    <button onclick="closeSheetsModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
-                        Закрыть
-                    </button>
+            <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                <button onclick="resetDefaultSheetUrl()" class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 transition">
+                    Сбросить по умолчанию
+                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeModal('sheetsModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 transition">Отмена</button>
+                    <button onclick="saveSheetsSettings()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition">Сохранить и загрузить</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: ПРОВЕРКА СТРОК ТАБЛИЦЫ БЕЗ КООРДИНАТ -->
-    <div id="debugModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[90vh]">
-            <!-- Шапка модального окна -->
-            <div class="px-6 py-4 bg-gradient-to-r from-purple-700 to-indigo-700 text-white flex items-center justify-between shrink-0">
+    <!-- МОДАЛЬНОЕ ОКНО: ПРОВЕРКА СТРОК БЕЗ КООРДИНАТ -->
+    <div id="debugModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+                    <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                         <i data-lucide="git-compare" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h2 class="font-bold text-lg leading-tight">Контроль координат в таблице</h2>
-                        <p class="text-xs text-purple-100">Строки Google Таблицы, у которых не заполнены Широта и Долгота</p>
+                        <h2 class="font-bold text-slate-900 text-base">Проверка координат таблицы</h2>
+                        <p id="debugModalSummary" class="text-xs text-slate-500">Строки таблицы без заполненных Широты и Долготы</p>
                     </div>
                 </div>
-                <button onclick="closeDebugModal()" class="p-1.5 rounded-xl hover:bg-white/15 text-white transition">
+                <button onclick="closeModal('debugModal')" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <!-- Сводка и поиск -->
-            <div class="p-5 border-b border-slate-200 bg-slate-50/80 space-y-3 shrink-0">
-                <div class="grid grid-cols-3 gap-2.5 text-center">
-                    <div class="bg-white p-2.5 rounded-xl border border-slate-200">
-                        <div class="text-lg font-extrabold text-slate-900" id="dbgTotalSheet">0</div>
-                        <div class="text-[11px] text-slate-500">Всего строк в таблице</div>
-                    </div>
-                    <div class="bg-white p-2.5 rounded-xl border border-emerald-200">
-                        <div class="text-lg font-extrabold text-emerald-600" id="dbgMatched">0</div>
-                        <div class="text-[11px] text-slate-500">С координатами</div>
-                    </div>
-                    <div class="bg-white p-2.5 rounded-xl border border-rose-200">
-                        <div class="text-lg font-extrabold text-rose-600" id="dbgUnmatchedSheet">0</div>
-                        <div class="text-[11px] text-slate-500">Без координат</div>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between gap-2">
-                    <input type="text" id="debugSearchInput" oninput="handleDebugSearch(this.value)" placeholder="Поиск по ID, названию или адресу..." class="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-purple-500 flex-1">
-                    <button onclick="exportDebugReportCsv()" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shrink-0" title="Скачать список строк без координат в CSV">
-                        <i data-lucide="download" class="w-3.5 h-3.5 text-purple-600"></i>
-                        <span>Скачать CSV</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Список строк без координат -->
-            <div id="debugContentContainer" class="flex-1 overflow-y-auto p-5 space-y-2.5 custom-scrollbar bg-slate-50/40">
-                <!-- Заполняется безопасно через DOM API -->
-            </div>
-
-            <!-- Подвал модального окна -->
-            <div class="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
-                <span class="text-[11px] text-slate-500">Координаты заполняются автоматически скриптом Google Apps Script по совпадению ID в колонке A.</span>
-                <button onclick="closeDebugModal()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition shrink-0">
-                    Закрыть
+            <div class="p-4 border-b border-slate-100 flex items-center gap-2 shrink-0">
+                <input
+                    id="debugSearchInput"
+                    type="text"
+                    oninput="renderDebugTable(this.value)"
+                    placeholder="Фильтр по номеру ID или адресу..."
+                    class="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 focus:border-purple-500 outline-none text-xs sm:text-sm"
+                >
+                <button onclick="exportUnmatchedCsv()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shrink-0">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span>CSV</span>
                 </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-50 sticky top-0 border-b border-slate-200 text-slate-500">
+                        <tr>
+                            <th class="py-2.5 px-4 font-semibold">ID</th>
+                            <th class="py-2.5 px-4 font-semibold">Адрес / Название</th>
+                            <th class="py-2.5 px-4 font-semibold">Уровень</th>
+                            <th class="py-2.5 px-4 font-semibold">Причина</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debugTableBody" class="divide-y divide-slate-100">
+                        <!-- Заполняется скриптом -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: АВТОРИЗАЦИЯ АДМИНИСТРАТОРА (PIN-КОД) -->
-    <div id="adminPinModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
-            <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+    <!-- МОДАЛЬНОЕ ОКНО: ВВОД PIN-КОДА ДЛЯ ВХОДА В РЕЖИМ АДМИНИСТРАТОРА -->
+    <div id="pinModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="lock" class="w-4 h-4 text-amber-400"></i>
-                    <h2 class="font-bold text-base">Вход для администратора</h2>
+                    <i data-lucide="lock" class="w-5 h-5 text-sky-600"></i>
+                    <h2 class="font-bold text-slate-900 text-base">Вход Администратора</h2>
                 </div>
-                <button onclick="closeAdminPinModal()" class="p-1 rounded-lg hover:bg-white/15 text-white transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+                <button onclick="closeModal('pinModal')" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div class="p-5 space-y-4">
-                <p class="text-xs text-slate-600 leading-relaxed">
-                    Введите PIN-код администратора, чтобы открыть настройки Google Таблицы, загрузку координат Яндекс.Карт и отладку.
-                </p>
-                <div>
-                    <input type="password" id="adminPinInput" maxlength="12" onkeydown="if(event.key==='Enter') submitAdminPin()" placeholder="Введите PIN (по умолчанию: 1234)" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 text-center tracking-widest font-bold">
-                </div>
-                <div class="flex items-center justify-end gap-2">
-                    <button onclick="closeAdminPinModal()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
-                        Отмена
-                    </button>
-                    <button onclick="submitAdminPin()" class="px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition shadow-xs">
-                        Войти как Админ
-                    </button>
-                </div>
+            <div class="p-5 space-y-3">
+                <p class="text-xs text-slate-600">Введите PIN-код для доступа к настройкам Google Таблицы и проверке координат.</p>
+                <input
+                    id="pinInput"
+                    type="password"
+                    inputmode="numeric"
+                    placeholder="Введите PIN-код"
+                    onkeydown="if(event.key==='Enter') submitAdminPin()"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-center text-lg tracking-widest font-bold"
+                >
+                <p id="pinErrorText" class="hidden text-xs font-semibold text-red-600 text-center">Неверный PIN-код</p>
+            </div>
+            <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button onclick="closeModal('pinModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70">Отмена</button>
+                <button onclick="submitAdminPin()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white">Войти</button>
             </div>
         </div>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: СМЕНА PIN-КОДА АДМИНИСТРАТОРА -->
-    <div id="changePinModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
-            <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+    <!-- МОДАЛЬНОЕ ОКНО: СМЕНА PIN-КОДА -->
+    <div id="changePinModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
-                    <h2 class="font-bold text-base">Смена PIN-кода</h2>
+                    <i data-lucide="key-round" class="w-5 h-5 text-amber-600"></i>
+                    <h2 class="font-bold text-slate-900 text-base">Изменить PIN-код</h2>
                 </div>
-                <button onclick="closeChangePinModal()" class="p-1 rounded-lg hover:bg-white/15 text-white transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+                <button onclick="closeModal('changePinModal')" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div class="p-5 space-y-3.5">
+            <div class="p-5 space-y-3">
                 <div>
-                    <label for="oldPinInput" class="block text-xs font-semibold text-slate-600 mb-1">Текущий PIN-код</label>
-                    <input type="password" id="oldPinInput" maxlength="12" placeholder="••••" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 text-center tracking-widest font-bold">
-                </div>
-                <div>
-                    <label for="newPinInput" class="block text-xs font-semibold text-slate-600 mb-1">Новый PIN-код (минимум 4 символа)</label>
-                    <input type="password" id="newPinInput" maxlength="12" placeholder="••••" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 text-center tracking-widest font-bold">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Текущий PIN-код</label>
+                    <input id="currentPinInput" type="password" inputmode="numeric" placeholder="••••" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-sky-500 outline-none text-sm font-semibold">
                 </div>
                 <div>
-                    <label for="confirmNewPinInput" class="block text-xs font-semibold text-slate-600 mb-1">Повторите новый PIN-код</label>
-                    <input type="password" id="confirmNewPinInput" maxlength="12" onkeydown="if(event.key==='Enter') submitChangePin()" placeholder="••••" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 text-center tracking-widest font-bold">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Новый PIN-код (от 4 символов)</label>
+                    <input id="newPinInput" type="password" inputmode="numeric" placeholder="••••" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-sky-500 outline-none text-sm font-semibold">
                 </div>
-                <div class="flex items-center justify-end gap-2 pt-1">
-                    <button onclick="closeChangePinModal()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
-                        Отмена
-                    </button>
-                    <button onclick="submitChangePin()" class="px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition shadow-xs">
-                        Сохранить PIN
-                    </button>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Повторите новый PIN-код</label>
+                    <input id="confirmPinInput" type="password" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter') submitChangePin()" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-sky-500 outline-none text-sm font-semibold">
                 </div>
+                <p id="changePinErrorText" class="hidden text-xs font-semibold text-red-600"></p>
+            </div>
+            <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button onclick="closeModal('changePinModal')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70">Отмена</button>
+                <button onclick="submitChangePin()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white">Сохранить PIN</button>
             </div>
         </div>
     </div>
 
-    <!-- ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ (TOAST) -->
-    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <!-- КОНТЕЙНЕР УВЕДОМЛЕНИЙ (TOAST) -->
+    <div id="toastContainer" class="fixed top-16 right-3 z-[60] flex flex-col gap-2 pointer-events-none max-w-xs w-[calc(100%-24px)]"></div>
 
-    <!-- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ -->
     <script>
-        'use strict';
+        /* =========================================================================
+           КОНСТАНТЫ И КОНФИГУРАЦИЯ
+           ========================================================================= */
+        const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1JTlOzvO-gUUVt8RIZ0uKg0hlYsM_I_LywAz3ncMnRcw';
+        const ADMIN_PIN_CODE = '1234';
+        const OFFLINE_THRESHOLD_MINUTES = 60;
+        const DEFAULT_TANK_CAPACITY = 2000;
+        const LIST_BATCH_SIZE = 40;
 
-        // =========================================================================
-        // 1. КОНСТАНТЫ И СОСТОЯНИЕ ПРИЛОЖЕНИЯ
-        // =========================================================================
         const STORAGE_KEYS = {
             SHEET_URL: 'aquamonitor_sheet_url_v2',
             REFRESH_SEC: 'aquamonitor_refresh_sec_v2',
-            USER_ROLE: 'aquamonitor_user_role_v1',
-            ADMIN_PIN: 'aquamonitor_admin_pin_v1'
+            USER_ROLE: 'aquamonitor_user_role_v2',
+            ADMIN_PIN: 'aquamonitor_admin_pin_v2'
         };
-
-        const DEFAULT_ADMIN_PIN = '1234';
-        const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1JTlOzvO-gUUVt8RIZ0uKg0hlYsM_I_LywAz3ncMnRcw';
-        const OFFLINE_THRESHOLD_MINUTES = 60;
-        const LIST_BATCH_SIZE = 40;
 
         const TEXT_LEVEL_PERCENT = {
             DOWN: 0,
@@ -668,33 +671,97 @@
             LOW: 25,
             MID: 75,
             MEDIUM: 75,
-            HI: 100,
-            HIGH: 100,
+            HI: 90,
+            HIGH: 90,
             FULL: 100
         };
 
+        const STATUS_META = {
+            critical: {
+                label: 'Пусто / DOWN',
+                shortLabel: 'Пусто',
+                color: '#ef4444',
+                textColor: '#ffffff',
+                badgeBg: 'bg-red-50 text-red-700 border-red-200',
+                barColor: '#ef4444',
+                priority: 1
+            },
+            offline: {
+                label: 'Без связи (>60м)',
+                shortLabel: 'Без связи',
+                color: '#7c3aed',
+                textColor: '#ffffff',
+                badgeBg: 'bg-purple-50 text-purple-700 border-purple-200',
+                barColor: '#7c3aed',
+                priority: 2
+            },
+            low: {
+                label: 'Низкий / LOW',
+                shortLabel: 'Низкий',
+                color: '#ea9999',
+                textColor: '#ffffff',
+                badgeBg: 'bg-rose-50 text-rose-800 border-rose-200',
+                barColor: '#ea9999',
+                priority: 3
+            },
+            medium: {
+                label: 'Средний / MID',
+                shortLabel: 'Средний',
+                color: '#ffe599',
+                textColor: '#ffffff',
+                badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+                barColor: '#facc15',
+                priority: 4
+            },
+            full: {
+                label: 'Полный / HI / FULL',
+                shortLabel: 'Полный',
+                color: '#10b981',
+                textColor: '#ffffff',
+                badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                barColor: '#10b981',
+                priority: 5
+            },
+            excluded: {
+                label: 'Исключение',
+                shortLabel: 'Исключение',
+                color: '#64748b',
+                textColor: '#ffffff',
+                badgeBg: 'bg-slate-100 text-slate-600 border-slate-200',
+                barColor: '#64748b',
+                priority: 6
+            }
+        };
+
+        /* =========================================================================
+           ОПРЕДЕЛЕНИЕ РОЛИ ПОЛЬЗОВАТЕЛЯ (URL ?role=driver или localStorage)
+           ========================================================================= */
         const urlParams = new URLSearchParams(window.location.search);
-        const roleFromUrl = urlParams.get('role');
+        const roleFromUrl = (urlParams.get('role') || '').toLowerCase();
         const isRoleLockedByUrl = roleFromUrl === 'driver';
         const initialRole = isRoleLockedByUrl
             ? 'driver'
             : (localStorage.getItem(STORAGE_KEYS.USER_ROLE) === 'driver' ? 'driver' : 'admin');
 
+        /* =========================================================================
+           СОСТОЯНИЕ ПРИЛОЖЕНИЯ
+           ========================================================================= */
         const state = {
             sheetUrl: localStorage.getItem(STORAGE_KEYS.SHEET_URL) || DEFAULT_SHEET_URL,
             refreshIntervalSec: parseInt(localStorage.getItem(STORAGE_KEYS.REFRESH_SEC) || '60', 10),
             refreshTimerId: null,
             userRole: initialRole,
             isRoleLockedByUrl,
+            mobileSheetExpanded: false,
+            mobileMenuOpen: false,
+            legendVisible: true,
             isDemoMode: true,
             clusteringEnabled: true,
             currentFilter: 'all',
             searchQuery: '',
-            debugSearchQuery: '',
             selectedKioskId: null,
             hasFittedInitialBounds: false,
             renderedListCount: 0,
-            rawSheetRows: [],
             kiosks: [],
             filteredKiosks: [],
             unmatchedSheetList: []
@@ -702,1001 +769,1169 @@
 
         let map = null;
         let clusterGroup = null;
-        let plainMarkersLayer = null;
+        let plainMarkerGroup = null;
         let markersById = {};
 
-        function getActiveAdminPin() {
-            return localStorage.getItem(STORAGE_KEYS.ADMIN_PIN) || DEFAULT_ADMIN_PIN;
+        /* =========================================================================
+           ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (Уведомления, PIN, Роли, Даты)
+           ========================================================================= */
+        function getSavedAdminPin() {
+            return localStorage.getItem(STORAGE_KEYS.ADMIN_PIN) || ADMIN_PIN_CODE;
         }
 
-        // =========================================================================
-        // 2. ИНИЦИАЛИЗАЦИЯ КАРТЫ 2ГИС И КЛАСТЕРИЗАЦИИ
-        // =========================================================================
-        function initMap() {
-            map = L.map('map', {
-                center: [53.5205, 49.3450],
-                zoom: 12,
-                zoomControl: true
+        function escapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const colors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-red-600 text-white',
+                warning: 'bg-amber-600 text-white',
+                info: 'bg-slate-800 text-white'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-3.5 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-2 ${colors[type] || colors.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
             });
 
-            L.tileLayer('https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', {
-                subdomains: ['0', '1', '2', '3'],
-                maxZoom: 19,
-                attribution: '&copy; 2ГИС'
-            }).addTo(map);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
 
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        }
+
+        function formatOffsetDateTime(minutesAgo) {
+            const d = new Date(Date.now() - minutesAgo * 60000);
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+        }
+
+        function updateLastSyncTime() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            const text = `Синхронизация: ${hh}:${mm}:${ss}`;
+
+            const el = document.getElementById('lastSyncText');
+            if (el) el.textContent = text;
+
+            const mobileEl = document.getElementById('mobileLastSyncText');
+            if (mobileEl) mobileEl.textContent = text;
+        }
+
+        function updateSourceBadge(isLive, activeCount) {
+            const badge = document.getElementById('sourceBadge');
+            if (!badge) return;
+
+            if (isLive) {
+                badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>Таблица (${activeCount})</span>`;
+            } else {
+                badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>Демо-режим</span>`;
+            }
+        }
+
+        /* =========================================================================
+           УПРАВЛЕНИЕ РОЛЯМИ И PIN-КОДОМ
+           ========================================================================= */
+        function applyUserRoleUI() {
+            const isAdmin = state.userRole === 'admin' && !state.isRoleLockedByUrl;
+            const adminControls = document.querySelectorAll('.admin-only-control');
+            adminControls.forEach(el => {
+                if (el.id === 'debugHeaderBtn') {
+                    const hasUnmatched = state.unmatchedSheetList.length > 0;
+                    el.classList.toggle('hidden', !(isAdmin && hasUnmatched));
+                    el.classList.toggle('inline-flex', isAdmin && hasUnmatched);
+                } else {
+                    el.classList.toggle('hidden', !isAdmin);
+                }
+            });
+
+            const roleSwitchBtn = document.getElementById('btnRoleSwitch');
+            const roleLabel = document.getElementById('roleLabel');
+            const roleIcon = document.getElementById('roleIcon');
+
+            if (roleSwitchBtn) {
+                roleSwitchBtn.classList.toggle('hidden', state.isRoleLockedByUrl);
+            }
+            if (roleLabel) {
+                roleLabel.textContent = isAdmin ? 'Администратор' : 'Водитель';
+            }
+            if (roleIcon) {
+                roleIcon.setAttribute('data-lucide', isAdmin ? 'shield-check' : 'truck');
+                roleIcon.className = isAdmin ? 'w-4 h-4 text-emerald-600' : 'w-4 h-4 text-sky-600';
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
+
+        function handleRoleSwitchClick() {
+            if (state.isRoleLockedByUrl) return;
+            if (state.userRole === 'admin') {
+                state.userRole = 'driver';
+                localStorage.setItem(STORAGE_KEYS.USER_ROLE, 'driver');
+                applyUserRoleUI();
+                showToast('Включён режим «Водитель»', 'info');
+            } else {
+                const input = document.getElementById('pinInput');
+                const err = document.getElementById('pinErrorText');
+                if (input) input.value = '';
+                if (err) err.classList.add('hidden');
+                openModal('pinModal');
+                setTimeout(() => input && input.focus(), 80);
+            }
+        }
+
+        function submitAdminPin() {
+            const input = document.getElementById('pinInput');
+            const err = document.getElementById('pinErrorText');
+            const entered = (input ? input.value : '').trim();
+
+            if (entered === getSavedAdminPin()) {
+                state.userRole = 'admin';
+                localStorage.setItem(STORAGE_KEYS.USER_ROLE, 'admin');
+                closeModal('pinModal');
+                applyUserRoleUI();
+                showToast('Вход в режим «Администратор» выполнен', 'success');
+            } else {
+                if (err) err.classList.remove('hidden');
+            }
+        }
+
+        function openChangePinModal() {
+            ['currentPinInput', 'newPinInput', 'confirmPinInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const err = document.getElementById('changePinErrorText');
+            if (err) err.classList.add('hidden');
+            openModal('changePinModal');
+        }
+
+        function submitChangePin() {
+            const cur = (document.getElementById('currentPinInput')?.value || '').trim();
+            const next = (document.getElementById('newPinInput')?.value || '').trim();
+            const conf = (document.getElementById('confirmPinInput')?.value || '').trim();
+            const err = document.getElementById('changePinErrorText');
+
+            const showErr = (msg) => {
+                if (err) {
+                    err.textContent = msg;
+                    err.classList.remove('hidden');
+                }
+            };
+
+            if (cur !== getSavedAdminPin()) {
+                showErr('Текущий PIN-код указан неверно');
+                return;
+            }
+            if (next.length < 4) {
+                showErr('Новый PIN-код должен содержать минимум 4 символа');
+                return;
+            }
+            if (next !== conf) {
+                showErr('Новые PIN-коды не совпадают');
+                return;
+            }
+
+            localStorage.setItem(STORAGE_KEYS.ADMIN_PIN, next);
+            closeModal('changePinModal');
+            showToast('PIN-код администратора успешно изменён', 'success');
+        }
+
+        function copyDriverLink() {
+            const base = window.location.origin + window.location.pathname;
+            const driverUrl = `${base}?role=driver`;
+
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = driverUrl;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('Ссылка для водителя скопирована', 'success');
+            } catch (e) {
+                showToast('Ссылка: ' + driverUrl, 'info');
+            }
+        }
+
+        /* =========================================================================
+           МОБИЛЬНОЕ МЕНЮ, ЛЕГЕНДА И ВЫДВИЖНАЯ ПАНЕЛЬ (BOTTOM SHEET)
+           ========================================================================= */
+        function toggleMobileMenu(forceOpen) {
+            const menu = document.getElementById('collapsibleNavMenu');
+            const btn = document.getElementById('btnToggleMenu');
+            const chevron = document.getElementById('menuChevron');
+            if (!menu) return;
+
+            const nextState = typeof forceOpen === 'boolean' ? forceOpen : !state.mobileMenuOpen;
+            state.mobileMenuOpen = nextState;
+
+            menu.classList.toggle('hidden', !nextState);
+            if (btn) btn.setAttribute('aria-expanded', String(nextState));
+            if (chevron) chevron.classList.toggle('rotate-180', nextState);
+        }
+
+        function toggleMapLegend(forceVisible) {
+            const card = document.getElementById('mapLegendCard');
+            const label = document.getElementById('legendToggleLabel');
+            if (!card) return;
+
+            const nextState = typeof forceVisible === 'boolean' ? forceVisible : !state.legendVisible;
+            state.legendVisible = nextState;
+
+            card.classList.toggle('hidden', !nextState);
+            if (label) {
+                label.textContent = nextState ? 'Показана' : 'Скрыта';
+                label.className = nextState
+                    ? 'text-[11px] font-semibold text-emerald-600'
+                    : 'text-[11px] font-semibold text-slate-400';
+            }
+        }
+
+        function toggleMobileSheet(forceExpanded) {
+            const panel = document.getElementById('sidebarPanel');
+            const actionText = document.getElementById('mobileSheetActionText');
+            const chevron = document.getElementById('mobileSheetChevron');
+            const openBtn = document.getElementById('btnMobileOpenList');
+            if (!panel) return;
+
+            const nextState = typeof forceExpanded === 'boolean' ? forceExpanded : !state.mobileSheetExpanded;
+            state.mobileSheetExpanded = nextState;
+
+            if (window.innerWidth >= 1024) {
+                panel.classList.remove('is-collapsed');
+                if (openBtn) openBtn.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.toggle('is-collapsed', !nextState);
+            if (actionText) actionText.textContent = nextState ? 'Свернуть' : 'Развернуть';
+            if (chevron) chevron.classList.toggle('rotate-180', nextState);
+            if (openBtn) openBtn.classList.toggle('hidden', nextState);
+
+            setTimeout(() => {
+                if (map) map.invalidateSize();
+            }, 300);
+        }
+
+        /* =========================================================================
+           ИНИЦИАЛИЗАЦИЯ КАРТЫ (Тайлы 2ГИС + Leaflet + MarkerCluster)
+           ========================================================================= */
+        function initMap() {
+            map = L.map('map', {
+                center: [53.516, 49.30],
+                zoom: 12,
+                zoomControl: true,
+                preferCanvas: true
+            });
+
+            // Слой карты 2ГИС
+            const twoGisTiles = L.tileLayer('https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', {
+                subdomains: ['0', '1', '2', '3'],
+                maxZoom: 18,
+                attribution: '&copy; 2ГИС'
+            });
+            twoGisTiles.addTo(map);
+
+            // Группа кластеризации маркеров
             clusterGroup = L.markerClusterGroup({
-                chunkedLoading: true,
                 maxClusterRadius: 48,
                 spiderfyOnMaxZoom: true,
                 showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
                 iconCreateFunction: function (cluster) {
-                    const children = cluster.getAllChildMarkers();
-                    const count = children.length;
-                    let hasAlert = false;
+                    const childMarkers = cluster.getAllChildMarkers();
+                    const count = childMarkers.length;
+                    let hasCritical = false;
+                    let hasAttention = false;
 
-                    for (let i = 0; i < children.length; i++) {
-                        const st = children[i].options.kioskStatus;
-                        if (st === 'critical' || st === 'offline') {
-                            hasAlert = true;
-                            break;
-                        }
+                    for (let i = 0; i < childMarkers.length; i++) {
+                        const st = childMarkers[i].options.kioskStatus;
+                        if (st === 'critical') hasCritical = true;
+                        else if (st === 'low' || st === 'offline') hasAttention = true;
                     }
 
-                    const size = count >= 100 ? 48 : count >= 20 ? 42 : 36;
-                    const bg = hasAlert ? '#f97316' : '#0284c7';
-                    const alertDot = hasAlert ? '<span class="aqua-cluster-alert-dot"></span>' : '';
-
+                    const bg = hasCritical ? '#ef4444' : (hasAttention ? '#ea9999' : '#0284c7');
                     return L.divIcon({
-                        html: `<div class="aqua-cluster" style="width:${size}px;height:${size}px;background:${bg};font-size:${count >= 100 ? 12 : 13}px;">${count}${alertDot}</div>`,
-                        className: 'aqua-cluster-wrapper',
-                        iconSize: [size, size]
+                        html: `<div class="aqua-cluster-badge" style="background:${bg}">${count}</div>`,
+                        className: 'aqua-cluster-icon',
+                        iconSize: [42, 42]
                     });
                 }
             });
 
-            plainMarkersLayer = L.layerGroup();
+            plainMarkerGroup = L.layerGroup();
 
             if (state.clusteringEnabled) {
                 map.addLayer(clusterGroup);
             } else {
-                map.addLayer(plainMarkersLayer);
+                map.addLayer(plainMarkerGroup);
             }
         }
 
         function toggleClustering() {
             state.clusteringEnabled = !state.clusteringEnabled;
-            const btn = document.getElementById('btnClusterToggle');
             const label = document.getElementById('clusterLabel');
+            const btn = document.getElementById('btnClusterToggle');
 
-            if (state.clusteringEnabled) {
-                if (plainMarkersLayer) map.removeLayer(plainMarkersLayer);
-                if (clusterGroup) map.addLayer(clusterGroup);
-                if (label) label.textContent = 'Кластеры: ВКЛ';
-                if (btn) btn.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 transition shadow-2xs';
-            } else {
-                if (clusterGroup) map.removeLayer(clusterGroup);
-                if (plainMarkersLayer) map.addLayer(plainMarkersLayer);
-                if (label) label.textContent = 'Кластеры: ВЫКЛ';
-                if (btn) btn.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-2xs';
+            if (label) label.textContent = state.clusteringEnabled ? 'ВКЛ' : 'ВЫКЛ';
+            if (btn) {
+                btn.classList.toggle('bg-sky-50/70', state.clusteringEnabled);
+                btn.classList.toggle('border-sky-200', state.clusteringEnabled);
+                btn.classList.toggle('bg-slate-50', !state.clusteringEnabled);
+                btn.classList.toggle('border-slate-200', !state.clusteringEnabled);
             }
 
+            if (map) {
+                if (state.clusteringEnabled) {
+                    map.removeLayer(plainMarkerGroup);
+                    map.addLayer(clusterGroup);
+                } else {
+                    map.removeLayer(clusterGroup);
+                    map.addLayer(plainMarkerGroup);
+                }
+            }
             renderMapMarkers();
         }
 
-        // =========================================================================
-        // 3. ДЕМО-ДАННЫЕ И ТЕСТ НАГРУЗКИ
-        // =========================================================================
-        function formatOffsetDateTime(minutesAgo) {
-            const d = new Date(Date.now() - minutesAgo * 60000);
-            const hh = String(d.getHours()).padStart(2, '0');
-            const mm = String(d.getMinutes()).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            const mo = String(d.getMonth() + 1).padStart(2, '0');
-            const yyyy = d.getFullYear();
-            return {
-                timeStr: `${hh}:${mm}`,
-                dateStr: `${dd}.${mo}.${yyyy}`
-            };
+        function fitAllMarkers() {
+            if (!map) return;
+            const sourceList = state.filteredKiosks.length > 0
+                ? state.filteredKiosks
+                : state.kiosks.filter(k => !k.isExcluded && k.status !== 'excluded');
+
+            const validCoords = sourceList
+                .filter(k => k.hasValidCoords)
+                .map(k => [k.lat, k.lng]);
+
+            if (validCoords.length === 0) return;
+
+            const bounds = L.latLngBounds(validCoords);
+            map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
         }
 
-        function buildDynamicDemoKiosks() {
-            const tRecent = formatOffsetDateTime(5);
-            const tMid = formatOffsetDateTime(18);
-            const tOffline = formatOffsetDateTime(135);
+        /* =========================================================================
+           НАВИГАЦИЯ ДЛЯ ANDROID APK (Яндекс.Навигатор и 2ГИС с авто-резервом)
+           ========================================================================= */
+        function openYandexRoute(lat, lng) {
+            const webUrl = `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=auto`;
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-            return [
-                { id: '1', name: 'Водомат #01 — ТЦ Парк Хаус', address: 'Автозаводское шоссе, 6', lat: 53.5284, lng: 49.3389, levelRaw: '1820', maxLiters: 2000, timeStr: tRecent.timeStr, dateStr: tRecent.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '2', name: 'Водомат #02 — ЖК Лесная Слобода', address: 'ул. Баныкина, 21А', lat: 53.5042, lng: 49.4125, levelRaw: 'DOWN', maxLiters: 2000, timeStr: tRecent.timeStr, dateStr: tRecent.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '3', name: 'Водомат #03 — Бульвар Ленина', address: 'б-р Ленина, 14', lat: 53.5118, lng: 49.4012, levelRaw: 'MID', maxLiters: 2000, timeStr: tMid.timeStr, dateStr: tMid.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '4', name: 'Водомат #04 — Магазин Миндаль', address: 'ул. Революционная, 52', lat: 53.5243, lng: 49.2743, levelRaw: 'FULL', maxLiters: 2000, timeStr: tRecent.timeStr, dateStr: tRecent.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '5', name: 'Водомат #05 — ТЦ Вега', address: 'ул. Юбилейная, 40', lat: 53.5017, lng: 49.2756, levelRaw: 'LOW', maxLiters: 1500, timeStr: tMid.timeStr, dateStr: tMid.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '6', name: 'Водомат #06 — Улица Дзержинского', address: 'ул. Дзержинского, 29', lat: 53.5321, lng: 49.2895, levelRaw: '0', maxLiters: 2000, timeStr: tRecent.timeStr, dateStr: tRecent.dateStr, exclusionRaw: 'Ремонт', hasTelemetry: true },
-                { id: '7', name: 'Водомат #07 — Проспект Степана Разина', address: 'пр-т Степана Разина, 44', lat: 53.5089, lng: 49.2611, levelRaw: '1400', maxLiters: 2000, timeStr: tOffline.timeStr, dateStr: tOffline.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '8', name: 'Водомат #08 — Улица Свердлова', address: 'ул. Свердлова, 17', lat: 53.5365, lng: 49.3014, levelRaw: '520', maxLiters: 2000, timeStr: tRecent.timeStr, dateStr: tRecent.dateStr, exclusionRaw: '', hasTelemetry: true },
-                { id: '9', name: 'Водомат #09 — Комсомольский район', address: 'ул. Громовой, 33', lat: 53.4812, lng: 49.4785, levelRaw: '1900', maxLiters: 2000, timeStr: tRecent.timeStr, dateStr: tRecent.dateStr, exclusionRaw: '', hasTelemetry: true }
-            ];
-        }
-
-        function generateStressTestDemo(count) {
-            const levels = ['FULL', '1750', 'MID', '1100', 'LOW', '340', 'DOWN'];
-            const tRecent = formatOffsetDateTime(8);
-            const tOffline = formatOffsetDateTime(120);
-            const list = [];
-
-            for (let i = 1; i <= count; i++) {
-                const isOff = i % 19 === 0;
-                const isExcl = i % 29 === 0;
-                const t = isOff ? tOffline : tRecent;
-                list.push({
-                    id: String(100 + i),
-                    name: `Водомат #${100 + i}`,
-                    address: `Тестовый адрес, д. ${i}`,
-                    lat: 53.47 + (Math.random() * 0.09),
-                    lng: 49.24 + (Math.random() * 0.25),
-                    levelRaw: levels[i % levels.length],
-                    maxLiters: 2000,
-                    timeStr: t.timeStr,
-                    dateStr: t.dateStr,
-                    exclusionRaw: isExcl ? 'ТО' : '',
-                    hasTelemetry: true
-                });
+            if (isMobile) {
+                const appUrl = `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}`;
+                const startedAt = Date.now();
+                window.location.href = appUrl;
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible' && Date.now() - startedAt < 2000) {
+                        window.open(webUrl, '_blank', 'noopener');
+                    }
+                }, 1200);
+            } else {
+                window.open(webUrl, '_blank', 'noopener');
             }
-
-            state.isDemoMode = true;
-            state.rawSheetRows = [];
-            state.unmatchedSheetList = [];
-            state.kiosks = list;
-            applyFilters(true);
-            updateDebugBadgeUI();
-            closeSheetsModal();
-            showToast(`Сгенерировано ${count} тестовых точек`, 'info');
         }
 
-        // =========================================================================
-        // 4. ЗАГРУЗКА И ПАРСИНГ GOOGLE ТАБЛИЦЫ
-        // =========================================================================
-        function buildGoogleSheetCsvUrl(rawUrl) {
-            const trimmed = rawUrl.trim();
+        function open2GisRoute(lat, lng) {
+            const webUrl = `https://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`;
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                const appUrl = `dgis://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`;
+                const startedAt = Date.now();
+                window.location.href = appUrl;
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible' && Date.now() - startedAt < 2000) {
+                        window.open(webUrl, '_blank', 'noopener');
+                    }
+                }, 1200);
+            } else {
+                window.open(webUrl, '_blank', 'noopener');
+            }
+        }
+
+        /* =========================================================================
+           ЗАГРУЗКА И ПАРСИНГ GOOGLE ТАБЛИЦЫ
+           ========================================================================= */
+        function buildCsvExportUrl(sheetUrl) {
+            const trimmed = (sheetUrl || '').trim();
             if (!trimmed) return '';
+
             if (trimmed.includes('output=csv') || trimmed.includes('format=csv')) {
-                return trimmed;
+                const sep = trimmed.includes('?') ? '&' : '?';
+                return `${trimmed}${sep}_cb=${Date.now()}`;
             }
-            const idMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-            if (!idMatch) return trimmed;
+
+            const idMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (!idMatch) return '';
             const sheetId = idMatch[1];
-            const gidMatch = trimmed.match(/[#&?]gid=([0-9]+)/);
+
+            const gidMatch = trimmed.match(/[?#&]gid=(\d+)/);
             const gidParam = gidMatch ? `&gid=${gidMatch[1]}` : '';
-            return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv${gidParam}`;
+            return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv${gidParam}&_cb=${Date.now()}`;
         }
 
-        async function fetchGoogleSheetData(isSilent = false) {
-            if (!state.sheetUrl) return;
+        function parseCsvText(csvText) {
+            const text = csvText.replace(/^\uFEFF/, '');
+            const rows = [];
+            let currentRow = [];
+            let currentVal = '';
+            let inQuotes = false;
 
-            const refreshIcon = document.getElementById('refreshIcon');
-            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                const next = text[i + 1];
 
-            try {
-                const csvUrl = buildGoogleSheetCsvUrl(state.sheetUrl);
-                const cacheBuster = (csvUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
-                const response = await fetch(csvUrl + cacheBuster, { cache: 'no-store' });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                if (inQuotes) {
+                    if (ch === '"' && next === '"') {
+                        currentVal += '"';
+                        i++;
+                    } else if (ch === '"') {
+                        inQuotes = false;
+                    } else {
+                        currentVal += ch;
+                    }
+                } else {
+                    if (ch === '"') {
+                        inQuotes = true;
+                    } else if (ch === ',') {
+                        currentRow.push(currentVal);
+                        currentVal = '';
+                    } else if (ch === '\r' && next === '\n') {
+                        currentRow.push(currentVal);
+                        rows.push(currentRow);
+                        currentRow = [];
+                        currentVal = '';
+                        i++;
+                    } else if (ch === '\n' || ch === '\r') {
+                        currentRow.push(currentVal);
+                        rows.push(currentRow);
+                        currentRow = [];
+                        currentVal = '';
+                    } else {
+                        currentVal += ch;
+                    }
                 }
-
-                const csvText = await response.text();
-                if (csvText.trim().startsWith('<!DOCTYPE html') || csvText.includes('<html')) {
-                    throw new Error('Таблица закрыта для публичного просмотра');
-                }
-
-                parseGoogleSheetCsv(csvText);
-                state.isDemoMode = false;
-                updateSourceBadge(false, false);
-                updateLastSyncTime();
-
-                if (!isSilent) {
-                    showToast(`Загружено точек: ${state.kiosks.length}`, 'success');
-                }
-            } catch (err) {
-                console.error('Ошибка загрузки Google Таблицы:', err);
-                updateSourceBadge(false, true);
-                if (!isSilent) {
-                    showToast(`Ошибка загрузки таблицы: ${err.message}`, 'error');
-                }
-            } finally {
-                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
-            }
-        }
-
-        function parseCoordValue(raw) {
-            if (raw === undefined || raw === null) return null;
-            const cleaned = String(raw).trim().replace(',', '.');
-            if (!cleaned) return null;
-            const num = parseFloat(cleaned);
-            return isNaN(num) ? null : num;
-        }
-
-        function parseGoogleSheetCsv(csvText) {
-            const parsed = Papa.parse(csvText, {
-                skipEmptyLines: true
-            });
-
-            const rows = parsed.data || [];
-            if (rows.length < 2) {
-                state.rawSheetRows = [];
-                rebuildMergedKiosks();
-                return;
             }
 
-            const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
-            const findCol = (keywords, fallbackIdx) => {
-                const idx = headers.findIndex(h => keywords.some(k => h === k || h.includes(k)));
-                return idx !== -1 ? idx : fallbackIdx;
-            };
-
-            const colId = findCol(['id', 'номер', 'код'], 0);
-            const colName = findCol(['название', 'имя', 'точка', 'киоск'], 1);
-            const colAddr = findCol(['адрес', 'расположение'], 2);
-            const colLevel = findCol(['уровень', 'остаток', 'вода'], 3);
-            const colMax = findCol(['макс', 'объем', 'объём'], 4);
-            const colTime = findCol(['время'], 5);
-            const colDate = findCol(['дата'], 6);
-            const colExcl = findCol(['исключ', 'статус', 'примечан'], 7);
-            const colLat = findCol(['широта', 'lat'], 8);
-            const colLng = findCol(['долгота', 'lng', 'lon'], 9);
-
-            const sheetRows = [];
-            for (let i = 1; i < rows.length; i++) {
-                const r = rows[i];
-                const id = String(r[colId] || '').trim();
-                if (!id) continue;
-
-                sheetRows.push({
-                    rowIndex: i + 1,
-                    id,
-                    name: String(r[colName] || `Водомат #${id}`).trim(),
-                    address: String(r[colAddr] || 'Адрес не указан').trim(),
-                    levelRaw: r[colLevel],
-                    maxLiters: r[colMax],
-                    timeStr: r[colTime],
-                    dateStr: r[colDate],
-                    exclusionRaw: r[colExcl],
-                    directLat: parseCoordValue(r[colLat]),
-                    directLng: parseCoordValue(r[colLng])
-                });
+            if (currentVal.length > 0 || currentRow.length > 0) {
+                currentRow.push(currentVal);
+                rows.push(currentRow);
             }
 
-            state.rawSheetRows = sheetRows;
-            rebuildMergedKiosks();
+            return rows.filter(r => r.some(cell => String(cell).trim() !== ''));
         }
 
-        // =========================================================================
-        // 6. РАСЧЁТ СТАТУСОВ И ПОСТРОЕНИЕ СПИСКА ВОДОМАТОВ ИЗ GOOGLE ТАБЛИЦЫ
-        // =========================================================================
         function parseExclusionFlag(raw) {
-            const val = String(raw || '').trim();
-            if (!val) return { isExcluded: false, reason: '' };
-            const lower = val.toLowerCase();
-            if (['нет', 'no', '0', 'false', '-', '—'].includes(lower)) {
-                return { isExcluded: false, reason: '' };
-            }
-            return { isExcluded: true, reason: val };
+            const val = String(raw || '').trim().toLowerCase();
+            if (!val) return false;
+            return ['да', 'yes', 'true', '1', 'x', 'х', 'исключение', 'исключен', 'исключён', 'скрыть', 'ремонт', 'выкл', 'откл'].includes(val)
+                || val.includes('исключ')
+                || val.includes('ремонт')
+                || val.includes('демонтаж');
         }
 
-        function parseWaterLevel(levelRaw, maxLitersRaw) {
-            const maxLiters = Number(maxLitersRaw) > 0 ? Number(maxLitersRaw) : 2000;
-            const raw = String(levelRaw || '').trim().toUpperCase();
+        function parseWaterLevel(rawLevel, capacity) {
+            const str = String(rawLevel || '').trim();
+            const upper = str.toUpperCase();
 
-            if (!raw) {
-                return { liters: 0, maxLiters, percent: 0, code: 'DOWN' };
+            // 1. Текстовые коды (DOWN, LOW, MID, HI, FULL)
+            const matchedCode = Object.keys(TEXT_LEVEL_PERCENT).find(code => upper === code || upper.includes(code));
+            if (matchedCode) {
+                const displayCode = matchedCode === 'MEDIUM' ? 'MID' : (matchedCode === 'HIGH' ? 'HI' : (matchedCode === 'EMPTY' ? 'DOWN' : matchedCode));
+                const percent = TEXT_LEVEL_PERCENT[matchedCode];
+                const estLiters = Math.round((percent / 100) * capacity);
+                return {
+                    isTextCode: true,
+                    code: displayCode,
+                    liters: estLiters,
+                    percent,
+                    markerSubLabel: displayCode,
+                    displayValue: displayCode
+                };
             }
 
-            if (Object.prototype.hasOwnProperty.call(TEXT_LEVEL_PERCENT, raw)) {
-                const pct = TEXT_LEVEL_PERCENT[raw];
-                const liters = Math.round((maxLiters * pct) / 100);
-                return { liters, maxLiters, percent: pct, code: raw };
+            // 2. Процент (если явно указан знак %)
+            if (str.includes('%')) {
+                const num = parseFloat(str.replace(',', '.').replace(/[^\d.-]/g, ''));
+                if (!isNaN(num)) {
+                    const pct = Math.max(0, Math.min(100, Math.round(num)));
+                    const liters = Math.round((pct / 100) * capacity);
+                    return {
+                        isTextCode: false,
+                        code: null,
+                        liters,
+                        percent: pct,
+                        markerSubLabel: `${liters}л`,
+                        displayValue: `${liters} л`
+                    };
+                }
             }
 
-            const numMatch = raw.replace(',', '.').match(/-?\d+(\.\d+)?/);
-            if (numMatch) {
-                const num = Math.max(0, parseFloat(numMatch[0]));
-                const liters = Math.min(maxLiters, Math.round(num));
-                const percent = Math.min(100, Math.max(0, Math.round((liters / maxLiters) * 100)));
-                return { liters, maxLiters, percent, code: null };
+            // 3. Числовое значение в литрах
+            const numeric = parseFloat(str.replace(',', '.').replace(/[^\d.-]/g, ''));
+            if (!isNaN(numeric)) {
+                const liters = Math.max(0, Math.round(numeric));
+                const pct = Math.max(0, Math.min(100, Math.round((liters / capacity) * 100)));
+                return {
+                    isTextCode: false,
+                    code: null,
+                    liters,
+                    percent: pct,
+                    markerSubLabel: `${liters}л`,
+                    displayValue: `${liters} л`
+                };
             }
 
-            return { liters: 0, maxLiters, percent: 0, code: 'DOWN' };
-        }
-
-        function evaluateUpdateTime(timeStr, dateStr) {
-            const t = String(timeStr || '').trim();
-            const d = String(dateStr || '').trim();
-            if (!t && !d) {
-                return { isOffline: false, displayText: 'Нет времени' };
-            }
-
-            const timeMatch = t.match(/^(\d{1,2}):(\d{2})/);
-            const dateMatch = d.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
-
-            if (!timeMatch || !dateMatch) {
-                return { isOffline: false, displayText: `${t} ${d}`.trim() };
-            }
-
-            const hh = parseInt(timeMatch[1], 10);
-            const mm = parseInt(timeMatch[2], 10);
-            const dd = parseInt(dateMatch[1], 10);
-            const mo = parseInt(dateMatch[2], 10) - 1;
-            let yyyy = parseInt(dateMatch[3], 10);
-            if (yyyy < 100) yyyy += 2000;
-
-            const updatedAt = new Date(yyyy, mo, dd, hh, mm, 0);
-            if (isNaN(updatedAt.getTime())) {
-                return { isOffline: false, displayText: `${t} ${d}`.trim() };
-            }
-
-            const diffMinutes = (Date.now() - updatedAt.getTime()) / 60000;
-            const isOffline = diffMinutes > OFFLINE_THRESHOLD_MINUTES;
             return {
-                isOffline,
-                displayText: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} (${String(dd).padStart(2, '0')}.${String(mo + 1).padStart(2, '0')})`
+                isTextCode: true,
+                code: '—',
+                liters: 0,
+                percent: 0,
+                markerSubLabel: '—',
+                displayValue: 'Нет данных'
+            };
+        }
+
+        function evaluateUpdateTime(rawTime) {
+            const str = String(rawTime || '').trim();
+            if (!str) return { isOffline: false, minutesAgo: null, formatted: 'Нет времени' };
+
+            let parsedDate = null;
+
+            const ruMatch = str.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+            if (ruMatch) {
+                const day = parseInt(ruMatch[1], 10);
+                const month = parseInt(ruMatch[2], 10) - 1;
+                let year = parseInt(ruMatch[3], 10);
+                if (year < 100) year += 2000;
+                const hh = parseInt(ruMatch[4] || '0', 10);
+                const mm = parseInt(ruMatch[5] || '0', 10);
+                const ss = parseInt(ruMatch[6] || '0', 10);
+                parsedDate = new Date(year, month, day, hh, mm, ss);
+            } else {
+                const isoMatch = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                if (isoMatch) {
+                    parsedDate = new Date(
+                        parseInt(isoMatch[1], 10),
+                        parseInt(isoMatch[2], 10) - 1,
+                        parseInt(isoMatch[3], 10),
+                        parseInt(isoMatch[4], 10),
+                        parseInt(isoMatch[5], 10),
+                        parseInt(isoMatch[6] || '0', 10)
+                    );
+                } else {
+                    const timeOnly = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+                    if (timeOnly) {
+                        const now = new Date();
+                        parsedDate = new Date(
+                            now.getFullYear(),
+                            now.getMonth(),
+                            now.getDate(),
+                            parseInt(timeOnly[1], 10),
+                            parseInt(timeOnly[2], 10),
+                            parseInt(timeOnly[3] || '0', 10)
+                        );
+                    }
+                }
+            }
+
+            if (!parsedDate || isNaN(parsedDate.getTime())) {
+                return { isOffline: false, minutesAgo: null, formatted: str };
+            }
+
+            const diffMin = Math.floor((Date.now() - parsedDate.getTime()) / 60000);
+            return {
+                isOffline: diffMin > OFFLINE_THRESHOLD_MINUTES,
+                minutesAgo: diffMin,
+                formatted: str
             };
         }
 
         function evaluateKioskState(kiosk) {
-            const excl = parseExclusionFlag(kiosk.exclusionRaw);
-            const level = parseWaterLevel(kiosk.levelRaw, kiosk.maxLiters);
-            const timeInfo = evaluateUpdateTime(kiosk.timeStr, kiosk.dateStr);
+            if (kiosk.isExcluded) return 'excluded';
+            if (kiosk.timeInfo.isOffline) return 'offline';
 
-            if (excl.isExcluded) {
-                return {
-                    status: 'excluded',
-                    statusLabel: excl.reason || 'Исключён',
-                    subLabel: 'ИСКЛ',
-                    pinFillPct: 100,
-                    fillColor: '#8b5cf6',
-                    borderColor: '#7c3aed',
-                    textColor: '#ffffff',
-                    barColor: '#8b5cf6',
-                    badgeBg: 'bg-violet-50 text-violet-700 border-violet-200',
-                    level,
-                    timeInfo
-                };
+            const lvl = kiosk.levelInfo;
+            if (lvl.isTextCode) {
+                if (lvl.code === 'DOWN') return 'critical';
+                if (lvl.code === 'LOW') return 'low';
+                if (lvl.code === 'MID') return 'medium';
+                if (lvl.code === 'HI' || lvl.code === 'FULL') return 'full';
+                return 'offline';
             }
 
-            if (kiosk.hasTelemetry === false) {
-                return {
-                    status: 'nodata',
-                    statusLabel: 'Без телеметрии',
-                    subLabel: 'Н/Д',
-                    pinFillPct: 0,
-                    fillColor: '#94a3b8',
-                    borderColor: '#64748b',
-                    textColor: '#334155',
-                    barColor: '#94a3b8',
-                    badgeBg: 'bg-slate-100 text-slate-600 border-slate-300',
-                    level,
-                    timeInfo
-                };
-            }
-
-            if (timeInfo.isOffline) {
-                return {
-                    status: 'offline',
-                    statusLabel: 'Offline (>60 мин)',
-                    subLabel: 'OFF',
-                    pinFillPct: 100,
-                    fillColor: '#334155',
-                    borderColor: '#0f172a',
-                    textColor: '#ffffff',
-                    barColor: '#334155',
-                    badgeBg: 'bg-slate-800 text-white border-slate-900',
-                    level,
-                    timeInfo
-                };
-            }
-
-            // 0% : DOWN / < 200л
-            if (level.code === 'DOWN' || level.liters < 200) {
-                return {
-                    status: 'critical',
-                    statusLabel: 'Пусто (<200 л)',
-                    subLabel: level.code || `${level.liters}л`,
-                    pinFillPct: 0,
-                    fillColor: '#ef4444',
-                    borderColor: '#ef4444',
-                    textColor: '#dc2626',
-                    barColor: '#ef4444',
-                    badgeBg: 'bg-red-50 text-red-700 border-red-200',
-                    level,
-                    timeInfo
-                };
-            }
-
-            // 25% : LOW / от 200л до 40%
-            if (level.code === 'LOW' || level.percent <= 40) {
-                return {
-                    status: 'low',
-                    statusLabel: `Низкий (${level.percent}%)`,
-                    subLabel: level.code || `${level.liters}л`,
-                    pinFillPct: 25,
-                    fillColor: '#ea9999',
-                    borderColor: '#e06666',
-                    textColor: '#7f1d1d',
-                    barColor: '#ea9999',
-                    badgeBg: 'bg-rose-50 text-rose-800 border-rose-200',
-                    level,
-                    timeInfo
-                };
-            }
-
-            // 75% : MID / 40% - 80%
-            if (level.code === 'MID' || level.percent <= 80) {
-                return {
-                    status: 'mid',
-                    statusLabel: `Средний (${level.percent}%)`,
-                    subLabel: level.code || `${level.liters}л`,
-                    pinFillPct: 75,
-                    fillColor: '#ffe599',
-                    borderColor: '#f1c232',
-                    textColor: '#78350f',
-                    barColor: '#ffe599',
-                    badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
-                    level,
-                    timeInfo
-                };
-            }
-
-            // 100% : HI / FULL / > 80%
-            return {
-                status: 'normal',
-                statusLabel: `Полный (${level.percent}%)`,
-                subLabel: level.code || `${level.liters}л`,
-                pinFillPct: 100,
-                fillColor: '#10b981',
-                borderColor: '#059669',
-                textColor: '#ffffff',
-                barColor: '#10b981',
-                badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                level,
-                timeInfo
-            };
+            if (lvl.liters < 200) return 'critical';
+            if (lvl.percent < 40) return 'low';
+            if (lvl.percent < 80) return 'medium';
+            return 'full';
         }
 
-        function rebuildMergedKiosks() {
-            const merged = [];
-            const unmatchedSheet = [];
+        function parseCoordinateValue(raw) {
+            if (raw === null || raw === undefined) return NaN;
+            const cleaned = String(raw).trim().replace(',', '.').replace(/[^\d.-]/g, '');
+            if (!cleaned) return NaN;
+            return parseFloat(cleaned);
+        }
 
-            state.rawSheetRows.forEach(row => {
-                const excl = parseExclusionFlag(row.exclusionRaw);
-                const lat = row.directLat;
-                const lng = row.directLng;
+        function parseGoogleSheetCsv(csvText) {
+            const rows = parseCsvText(csvText);
+            if (rows.length < 2) return { kiosks: [], unmatched: [] };
 
-                if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-                    merged.push({
-                        id: row.id,
-                        name: row.name,
-                        address: row.address,
-                        lat,
-                        lng,
-                        levelRaw: row.levelRaw,
-                        maxLiters: row.maxLiters,
-                        timeStr: row.timeStr,
-                        dateStr: row.dateStr,
-                        exclusionRaw: row.exclusionRaw,
-                        hasTelemetry: true
-                    });
-                } else if (!excl.isExcluded) {
-                    unmatchedSheet.push(row);
+            const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
+            const findCol = (keywords) => headers.findIndex(h => keywords.some(k => h.includes(k)));
+
+            let idxId = findCol(['номер', 'id', '№', 'метка', 'киоск', 'код', 'аппарат']);
+            let idxAddr = findCol(['адрес', 'название', 'точка', 'место', 'объект', 'наимен']);
+            let idxLevel = findCol(['уровень', 'остаток', 'вода', 'литр', 'объем', 'объём', 'заполн', 'level']);
+            let idxCap = findCol(['емкость', 'ёмкость', 'макс', 'бак', 'capacity']);
+            let idxTime = findCol(['время', 'дата', 'обновл', 'связь', 'последн', 'updated', 'time']);
+            let idxExcl = findCol(['исключ', 'скрыт', 'ремонт', 'выкл', 'откл', 'ignore', 'exclude', 'статус искл']);
+            let idxLat = findCol(['широта', 'lat', 'latitude']);
+            let idxLng = findCol(['долгота', 'lng', 'lon', 'longitude']);
+
+            if (idxId === -1) idxId = 0;
+            if (idxAddr === -1) idxAddr = 1;
+            if (idxLevel === -1) idxLevel = 2;
+
+            const kiosks = [];
+            const unmatched = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const id = String(row[idxId] || '').trim();
+                const address = String(row[idxAddr] || '').trim();
+                const rawLevel = idxLevel >= 0 ? row[idxLevel] : '';
+
+                if (!id && !address) continue;
+
+                const capacityRaw = idxCap >= 0 ? parseFloat(String(row[idxCap] || '').replace(',', '.')) : NaN;
+                const capacity = (!isNaN(capacityRaw) && capacityRaw > 0) ? capacityRaw : DEFAULT_TANK_CAPACITY;
+
+                const levelInfo = parseWaterLevel(rawLevel, capacity);
+                const timeInfo = evaluateUpdateTime(idxTime >= 0 ? row[idxTime] : '');
+                const isExcluded = idxExcl >= 0 ? parseExclusionFlag(row[idxExcl]) : false;
+
+                let lat = idxLat >= 0 ? parseCoordinateValue(row[idxLat]) : NaN;
+                let lng = idxLng >= 0 ? parseCoordinateValue(row[idxLng]) : NaN;
+
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    if (lat < 40 && lng > 40) {
+                        const tmp = lat;
+                        lat = lng;
+                        lng = tmp;
+                    }
                 }
+
+                const hasValidCoords = !isNaN(lat) && !isNaN(lng) && Math.abs(lat) > 0.1 && Math.abs(lng) > 0.1;
+
+                const kiosk = {
+                    id: id || `row-${i}`,
+                    address: address || `Водомат №${id || i}`,
+                    capacity,
+                    levelInfo,
+                    timeInfo,
+                    isExcluded,
+                    lat: hasValidCoords ? lat : null,
+                    lng: hasValidCoords ? lng : null,
+                    hasValidCoords
+                };
+                kiosk.status = evaluateKioskState(kiosk);
+
+                kiosks.push(kiosk);
+                if (!hasValidCoords && !isExcluded) {
+                    unmatched.push({
+                        id: kiosk.id,
+                        address: kiosk.address,
+                        level: kiosk.levelInfo.displayValue,
+                        reason: 'Не заполнены Широта / Долгота'
+                    });
+                }
+            }
+
+            return { kiosks, unmatched };
+        }
+
+        function buildDynamicDemoKiosks() {
+            const samples = [
+                { id: '311', address: 'Революционная 1000 Мелочей', rawLevel: '1820', minAgo: 8, lat: 53.52437, lng: 49.27436, excl: false },
+                { id: '310', address: 'Юбилейная 1000 Мелочей', rawLevel: 'LOW', minAgo: 12, lat: 53.50170, lng: 49.27559, excl: false },
+                { id: '104', address: 'ул. Дзержинского, 42', rawLevel: 'DOWN', minAgo: 5, lat: 53.53120, lng: 49.28810, excl: false },
+                { id: '215', address: 'пр-т Степана Разина, 60', rawLevel: 'MID', minAgo: 18, lat: 53.50940, lng: 49.26120, excl: false },
+                { id: '118', address: 'ул. Автостроителей, 84А', rawLevel: '480', minAgo: 95, lat: 53.54180, lng: 49.30140, excl: false },
+                { id: '207', address: 'ул. 70 лет Октября, 38', rawLevel: 'FULL', minAgo: 4, lat: 53.53760, lng: 49.31250, excl: false },
+                { id: '142', address: 'ул. Ворошилова, 24', rawLevel: '140', minAgo: 14, lat: 53.52790, lng: 49.29900, excl: false },
+                { id: '305', address: 'б-р Приморский, 12', rawLevel: '1250', minAgo: 10, lat: 53.49610, lng: 49.28950, excl: true }
+            ];
+
+            return samples.map(s => {
+                const levelInfo = parseWaterLevel(s.rawLevel, DEFAULT_TANK_CAPACITY);
+                const timeInfo = evaluateUpdateTime(formatOffsetDateTime(s.minAgo));
+                const kiosk = {
+                    id: s.id,
+                    address: s.address,
+                    capacity: DEFAULT_TANK_CAPACITY,
+                    levelInfo,
+                    timeInfo,
+                    isExcluded: s.excl,
+                    lat: s.lat,
+                    lng: s.lng,
+                    hasValidCoords: true
+                };
+                kiosk.status = evaluateKioskState(kiosk);
+                return kiosk;
+            });
+        }
+
+        async function fetchGoogleSheetData(isSilent = false) {
+            const refreshIcon = document.getElementById('refreshIcon');
+            if (refreshIcon) refreshIcon.classList.add('animate-spin-fast');
+
+            const exportUrl = buildCsvExportUrl(state.sheetUrl);
+
+            try {
+                if (!exportUrl) throw new Error('Некорректная ссылка на Google Таблицу');
+
+                const response = await fetch(exportUrl, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const csvText = await response.text();
+                if (!csvText || csvText.trim().startsWith('<!DOCTYPE') || csvText.trim().startsWith('<html')) {
+                    throw new Error('Таблица закрыта — откройте доступ «Все, у кого есть ссылка»');
+                }
+
+                const parsed = parseGoogleSheetCsv(csvText);
+                if (parsed.kiosks.length === 0) {
+                    throw new Error('В таблице не найдено строк с водоматами');
+                }
+
+                state.isDemoMode = false;
+                state.kiosks = parsed.kiosks;
+                state.unmatchedSheetList = parsed.unmatched;
+
+                const activeCount = parsed.kiosks.filter(k => !k.isExcluded && k.status !== 'excluded').length;
+                updateSourceBadge(true, activeCount);
+                updateLastSyncTime();
+                rebuildView();
+
+                if (!isSilent) {
+                    showToast(`Загружено точек в работе: ${activeCount}`, 'success');
+                }
+            } catch (err) {
+                console.warn('Ошибка загрузки Google Таблицы, включён демо-режим:', err);
+                if (state.kiosks.length === 0) {
+                    state.isDemoMode = true;
+                    state.kiosks = buildDynamicDemoKiosks();
+                    state.unmatchedSheetList = [];
+                    const activeCount = state.kiosks.filter(k => !k.isExcluded && k.status !== 'excluded').length;
+                    updateSourceBadge(false, activeCount);
+                    rebuildView();
+                }
+                if (!isSilent) {
+                    showToast(`Не удалось обновить таблицу: ${err.message}`, 'warning');
+                }
+            } finally {
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin-fast');
+            }
+        }
+
+        function manualRefresh() {
+            fetchGoogleSheetData(false);
+        }
+
+        function setupAutoRefreshTimer() {
+            if (state.refreshTimerId) {
+                clearInterval(state.refreshTimerId);
+                state.refreshTimerId = null;
+            }
+            if (state.refreshIntervalSec > 0) {
+                state.refreshTimerId = setInterval(() => {
+                    fetchGoogleSheetData(true);
+                }, state.refreshIntervalSec * 1000);
+            }
+        }
+
+        /* =========================================================================
+           ФИЛЬТРАЦИЯ, СТАТИСИКА И ОТРИСОВКА КАРТЫ + СПИСКА
+           ========================================================================= */
+        function rebuildView() {
+            state.kiosks.sort((a, b) => {
+                const pa = (STATUS_META[a.status] || STATUS_META.full).priority;
+                const pb = (STATUS_META[b.status] || STATUS_META.full).priority;
+                if (pa !== pb) return pa - pb;
+                return String(a.id).localeCompare(String(b.id), 'ru', { numeric: true });
             });
 
-            state.kiosks = merged;
-            state.unmatchedSheetList = unmatchedSheet;
+            updateKpiAndFilterCounts();
+            applyFilters();
 
-            const shouldAutoFit = !state.hasFittedInitialBounds && merged.length > 0;
-            if (shouldAutoFit) {
+            if (!state.hasFittedInitialBounds && state.kiosks.some(k => !k.isExcluded && k.status !== 'excluded' && k.hasValidCoords)) {
                 state.hasFittedInitialBounds = true;
+                fitAllMarkers();
             }
 
-            applyFilters(shouldAutoFit);
-            updateDebugBadgeUI();
+            const countEl = document.getElementById('debugUnmatchedCount');
+            if (countEl) countEl.textContent = String(state.unmatchedSheetList.length);
+            applyUserRoleUI();
         }
 
-        // =========================================================================
-        // 7. ФИЛЬТРАЦИЯ, СОРТИРОВКА И РЕНДЕРИНГ СПИСКА И МАРКЕРОВ
-        // =========================================================================
-        function applyFilters(shouldFitMap = false) {
-            const q = state.searchQuery.trim().toLowerCase();
-
-            let countAll = 0;
+        function updateKpiAndFilterCounts() {
+            let countActiveAll = 0;
             let countCritical = 0;
-            let countOffline = 0;
             let countLow = 0;
-            let countMid = 0;
-            let countNormal = 0;
+            let countOffline = 0;
             let countExcluded = 0;
-            let countNoData = 0;
-
             let sumPercent = 0;
             let activeTelemetryCount = 0;
 
-            const evaluatedList = state.kiosks.map(k => {
-                const evalInfo = evaluateKioskState(k);
-                countAll++;
-
-                if (evalInfo.status === 'critical') countCritical++;
-                else if (evalInfo.status === 'offline') countOffline++;
-                else if (evalInfo.status === 'low') countLow++;
-                else if (evalInfo.status === 'mid') countMid++;
-                else if (evalInfo.status === 'normal') countNormal++;
-                else if (evalInfo.status === 'excluded') countExcluded++;
-                else if (evalInfo.status === 'nodata') countNoData++;
-
-                if (evalInfo.status !== 'excluded' && evalInfo.status !== 'nodata') {
-                    sumPercent += evalInfo.level.percent;
-                    activeTelemetryCount++;
+            for (let i = 0; i < state.kiosks.length; i++) {
+                const k = state.kiosks[i];
+                if (k.isExcluded || k.status === 'excluded') {
+                    countExcluded++;
+                    continue;
                 }
 
-                return { kiosk: k, evalInfo };
-            });
+                countActiveAll++;
+                if (k.status === 'critical') countCritical++;
+                else if (k.status === 'low') countLow++;
+                else if (k.status === 'offline') countOffline++;
 
-            // Обновление KPI (Вариант 1: Пусто + Offline + Низкий уровень LOW)
-            const attentionTotal = countCritical + countOffline + countLow;
-            document.getElementById('statTotal').textContent = String(countAll);
-            document.getElementById('statAttention').textContent = String(attentionTotal);
+                if (k.status !== 'offline') {
+                    sumPercent += k.levelInfo.percent;
+                    activeTelemetryCount++;
+                }
+            }
+
+            const countAttention = countCritical + countLow + countOffline;
+
+            document.getElementById('statTotal').textContent = String(countActiveAll);
+            document.getElementById('statAttention').textContent = String(countAttention);
             document.getElementById('statAvgLevel').textContent = activeTelemetryCount > 0
                 ? `${Math.round(sumPercent / activeTelemetryCount)}%`
                 : '0%';
 
-            // Счётчики в фильтрах
-            document.getElementById('countAll').textContent = String(countAll);
-            document.getElementById('countAttention').textContent = String(attentionTotal);
-            document.getElementById('countCritical').textContent = String(countCritical);
-            document.getElementById('countLow').textContent = String(countLow);
-            document.getElementById('countOffline').textContent = String(countOffline);
-            document.getElementById('countExcluded').textContent = String(countExcluded);
+            const mobileTotalBadge = document.getElementById('mobileSheetBadgeCount');
+            const mobileAttnBadge = document.getElementById('mobileSheetAttentionBadge');
+            if (mobileTotalBadge) mobileTotalBadge.textContent = String(countActiveAll);
+            if (mobileAttnBadge) mobileAttnBadge.textContent = `${countAttention} вним.`;
 
-            // Приоритет сортировки: пустые -> offline -> низкий -> средний -> полный -> без тлм -> исключённые
-            const priorityMap = {
-                critical: 1,
-                offline: 2,
-                low: 3,
-                mid: 4,
-                normal: 5,
-                nodata: 6,
-                excluded: 7
+            const countsMap = {
+                all: countActiveAll,
+                attention: countAttention,
+                critical: countCritical,
+                low: countLow,
+                offline: countOffline,
+                excluded: countExcluded
             };
 
-            const filtered = evaluatedList
-                .filter(({ kiosk, evalInfo }) => {
-                    if (state.currentFilter === 'attention') {
-                        if (!['critical', 'offline', 'low'].includes(evalInfo.status)) {
-                            return false;
-                        }
-                    } else if (state.currentFilter !== 'all' && evalInfo.status !== state.currentFilter) {
-                        return false;
-                    }
-                    if (!q) return true;
-                    return (
-                        String(kiosk.id).toLowerCase().includes(q) ||
-                        String(kiosk.name).toLowerCase().includes(q) ||
-                        String(kiosk.address).toLowerCase().includes(q)
-                    );
-                })
-                .sort((a, b) => {
-                    const pa = priorityMap[a.evalInfo.status] || 99;
-                    const pb = priorityMap[b.evalInfo.status] || 99;
-                    if (pa !== pb) return pa - pb;
-                    return a.evalInfo.level.percent - b.evalInfo.level.percent;
-                });
+            document.querySelectorAll('.filter-pill').forEach(btn => {
+                const filterKey = btn.dataset.filter;
+                const countSpan = btn.querySelector('.filter-count');
+                if (countSpan) countSpan.textContent = String(countsMap[filterKey] || 0);
 
-            state.filteredKiosks = filtered;
-            document.getElementById('shownCount').textContent = String(filtered.length);
-
-            renderKioskListReset();
-            renderMapMarkers();
-
-            if (shouldFitMap && filtered.length > 0) {
-                fitAllMarkers();
-            }
+                const isActive = state.currentFilter === filterKey;
+                if (isActive) {
+                    btn.className = 'filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1 bg-sky-600 text-white border-sky-600 shadow-xs';
+                    if (countSpan) countSpan.className = 'filter-count px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white';
+                } else {
+                    btn.className = 'filter-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1 bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200';
+                    if (countSpan) countSpan.className = 'filter-count px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200/80 text-slate-600';
+                }
+            });
         }
 
         function setFilter(filterKey) {
             state.currentFilter = filterKey;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                const isActive = btn.getAttribute('data-filter') === filterKey;
-                if (isActive) {
-                    btn.className = 'filter-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white transition whitespace-nowrap flex items-center gap-1.5';
-                } else {
-                    btn.className = 'filter-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200/70 transition whitespace-nowrap flex items-center gap-1.5';
-                }
-            });
-            applyFilters(false);
+            updateKpiAndFilterCounts();
+            applyFilters();
         }
 
-        function handleSearch(val) {
-            state.searchQuery = val;
+        function handleSearchInput(val) {
+            state.searchQuery = (val || '').trim().toLowerCase();
             const clearBtn = document.getElementById('clearSearchBtn');
-            if (clearBtn) clearBtn.classList.toggle('hidden', !val);
-            applyFilters(false);
+            if (clearBtn) clearBtn.classList.toggle('hidden', !state.searchQuery);
+            applyFilters();
         }
 
         function clearSearch() {
             const input = document.getElementById('searchInput');
             if (input) input.value = '';
-            handleSearch('');
+            handleSearchInput('');
         }
 
-        function renderKioskListReset() {
+        function applyFilters() {
+            const q = state.searchQuery;
+            const f = state.currentFilter;
+
+            state.filteredKiosks = state.kiosks.filter(k => {
+                const isExcl = k.isExcluded || k.status === 'excluded';
+
+                // Киоски под исключением показываем ТОЛЬКО во вкладке "Исключения"
+                if (f === 'excluded') {
+                    if (!isExcl) return false;
+                } else {
+                    if (isExcl) return false;
+                    if (f === 'attention') {
+                        if (!(k.status === 'critical' || k.status === 'low' || k.status === 'offline')) return false;
+                    } else if (f !== 'all') {
+                        if (k.status !== f) return false;
+                    }
+                }
+
+                if (q) {
+                    const hay = `${k.id} ${k.address} ${k.levelInfo.displayValue}`.toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+
+            renderMapMarkers();
+            resetAndRenderKioskList();
+        }
+
+        function buildMarkerIcon(kiosk) {
+            const meta = STATUS_META[kiosk.status] || STATUS_META.full;
+            const subText = kiosk.levelInfo.markerSubLabel || '—';
+            const isCompact = subText.length >= 4;
+
+            // Визуальная высота уровня заполнения внутри маркера-капли
+            let visualFillPercent = kiosk.levelInfo.percent;
+            if (kiosk.status === 'offline' || kiosk.status === 'excluded') {
+                visualFillPercent = 100;
+            } else if (kiosk.status === 'critical') {
+                visualFillPercent = Math.max(visualFillPercent, 15);
+            } else if (kiosk.status === 'low') {
+                visualFillPercent = 25;
+            } else if (kiosk.status === 'medium') {
+                visualFillPercent = 75;
+            } else {
+                visualFillPercent = Math.max(80, Math.min(100, visualFillPercent));
+            }
+
+            // Пересчёт процента заполнения с учётом диагонали повёрнутого квадрата (~44px из 62px)
+            const scaledHeight = Math.round(14 + (visualFillPercent / 100) * 72);
+            const showWaterSurface = visualFillPercent > 0 && visualFillPercent < 96 && kiosk.status !== 'offline' && kiosk.status !== 'excluded';
+            const pinBorderColor = kiosk.status === 'critical' ? '#fecaca' : '#ffffff';
+
+            return L.divIcon({
+                className: 'aqua-marker-wrapper',
+                iconSize: [44, 44],
+                iconAnchor: [22, 42],
+                popupAnchor: [0, -38],
+                html: `
+                    <div class="aqua-pin" style="border-color:${pinBorderColor};">
+                        <div class="aqua-pin-upright">
+                            <div class="aqua-pin-water" style="height:${scaledHeight}%; background:${meta.color};">
+                                ${showWaterSurface ? '<div class="aqua-pin-water-line"></div>' : ''}
+                            </div>
+                            <div class="aqua-pin-content">
+                                <span class="aqua-pin-id">${escapeHtml(kiosk.id)}</span>
+                                <span class="aqua-pin-sub ${isCompact ? 'is-compact' : ''}">${escapeHtml(subText)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `
+            });
+        }
+
+        function buildPopupHtml(kiosk) {
+            const meta = STATUS_META[kiosk.status] || STATUS_META.full;
+            const pct = kiosk.levelInfo.percent;
+
+            return `
+                <div class="p-3.5 font-sans">
+                    <div class="flex items-start justify-between gap-2 pr-6">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Водомат №${escapeHtml(kiosk.id)}</div>
+                            <div class="text-sm font-bold text-slate-900 leading-snug mt-0.5">${escapeHtml(kiosk.address)}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-2.5 flex items-center justify-between gap-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-semibold border ${meta.badgeBg}">
+                            ${escapeHtml(meta.label)}
+                        </span>
+                        <span class="text-sm font-extrabold text-slate-900">${escapeHtml(kiosk.levelInfo.displayValue)}</span>
+                    </div>
+
+                    <div class="mt-2 w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/70">
+                        <div class="h-full rounded-full" style="width:${pct}%; background:${meta.barColor};"></div>
+                    </div>
+
+                    <div class="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                        <span>Обновлено:</span>
+                        <span class="font-medium text-slate-700">${escapeHtml(kiosk.timeInfo.formatted)}</span>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <button onclick="openYandexRoute(${kiosk.lat}, ${kiosk.lng})" class="px-2.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs transition text-center shadow-xs">
+                            Яндекс
+                        </button>
+                        <button onclick="open2GisRoute(${kiosk.lat}, ${kiosk.lng})" class="px-2.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition text-center shadow-xs">
+                            2ГИС
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMapMarkers() {
+            if (!map || !clusterGroup || !plainMarkerGroup) return;
+
+            clusterGroup.clearLayers();
+            plainMarkerGroup.clearLayers();
+            markersById = {};
+
+            const targetGroup = state.clusteringEnabled ? clusterGroup : plainMarkerGroup;
+            const markersToAdd = [];
+
+            for (let i = 0; i < state.filteredKiosks.length; i++) {
+                const k = state.filteredKiosks[i];
+                if (!k.hasValidCoords) continue;
+
+                const marker = L.marker([k.lat, k.lng], {
+                    icon: buildMarkerIcon(k),
+                    kioskStatus: k.status
+                });
+                marker.bindPopup(buildPopupHtml(k), { maxWidth: 300 });
+                markersById[k.id] = marker;
+                markersToAdd.push(marker);
+            }
+
+            if (state.clusteringEnabled) {
+                clusterGroup.addLayers(markersToAdd);
+            } else {
+                markersToAdd.forEach(m => targetGroup.addLayer(m));
+            }
+        }
+
+        function resetAndRenderKioskList() {
             const container = document.getElementById('kioskListContainer');
             if (!container) return;
+
             container.innerHTML = '';
             state.renderedListCount = 0;
 
             if (state.filteredKiosks.length === 0) {
-                const emptyBox = document.createElement('div');
-                emptyBox.className = 'text-center py-10 px-4 text-slate-500 text-xs bg-white rounded-2xl border border-slate-200/80';
-                emptyBox.textContent = 'По выбранному фильтру или поиску водоматы не найдены.';
-                container.appendChild(emptyBox);
+                container.innerHTML = `
+                    <div class="text-center py-10 px-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2.5">
+                            <i data-lucide="search-x" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm font-bold text-slate-700">Киоски не найдены</p>
+                        <p class="text-xs text-slate-500 mt-1">Попробуйте изменить фильтр или поисковый запрос</p>
+                    </div>
+                `;
+                if (window.lucide) window.lucide.createIcons();
                 return;
             }
 
-            appendNextKioskBatch();
+            appendNextListBatch();
+        }
+
+        function appendNextListBatch() {
+            const container = document.getElementById('kioskListContainer');
+            if (!container) return;
+
+            const start = state.renderedListCount;
+            const end = Math.min(start + LIST_BATCH_SIZE, state.filteredKiosks.length);
+            if (start >= end) return;
+
+            const fragment = document.createDocumentFragment();
+
+            for (let i = start; i < end; i++) {
+                const k = state.filteredKiosks[i];
+                const meta = STATUS_META[k.status] || STATUS_META.full;
+
+                const card = document.createElement('div');
+                card.className = 'bg-white hover:border-sky-300 border border-slate-200/90 rounded-2xl p-3 shadow-2xs transition cursor-pointer flex items-center gap-3 active:scale-[0.99]';
+                card.onclick = () => focusKioskOnMap(k.id);
+
+                card.innerHTML = `
+                    <!-- Индикатор-бак -->
+                    <div class="w-11 h-14 rounded-xl bg-slate-100 border border-slate-200 relative overflow-hidden shrink-0 flex items-end">
+                        <div class="tank-fill w-full" style="height:${k.levelInfo.percent}%; background:${meta.barColor};"></div>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-0.5">
+                            <span class="text-[11px] font-extrabold text-slate-900 bg-white/85 px-1 rounded leading-tight shadow-2xs">${escapeHtml(k.id)}</span>
+                        </div>
+                    </div>
+
+                    <!-- Информация -->
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="font-bold text-xs sm:text-sm text-slate-900 truncate">${escapeHtml(k.address)}</div>
+                            <span class="text-xs sm:text-sm font-extrabold text-slate-900 shrink-0">${escapeHtml(k.levelInfo.displayValue)}</span>
+                        </div>
+
+                        <div class="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-semibold border ${meta.badgeBg}">
+                                ${escapeHtml(meta.shortLabel)}
+                            </span>
+                            <span class="text-[11px] text-slate-400 truncate">${escapeHtml(k.timeInfo.formatted)}</span>
+                        </div>
+
+                        ${!k.hasValidCoords ? '<div class="mt-1 text-[10px] font-semibold text-purple-600">Нет координат на карте</div>' : ''}
+                    </div>
+                `;
+
+                fragment.appendChild(card);
+            }
+
+            container.appendChild(fragment);
+            state.renderedListCount = end;
         }
 
         function handleListScroll(el) {
-            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
-                appendNextKioskBatch();
-            }
-        }
-
-        function appendNextKioskBatch() {
-            const container = document.getElementById('kioskListContainer');
-            if (!container) return;
-            if (state.renderedListCount >= state.filteredKiosks.length) return;
-
-            const oldMoreBtn = container.querySelector('.load-more-btn-wrap');
-            if (oldMoreBtn) oldMoreBtn.remove();
-
-            const end = Math.min(state.renderedListCount + LIST_BATCH_SIZE, state.filteredKiosks.length);
-            const frag = document.createDocumentFragment();
-
-            for (let i = state.renderedListCount; i < end; i++) {
-                const { kiosk, evalInfo } = state.filteredKiosks[i];
-                frag.appendChild(buildKioskCardElement(kiosk, evalInfo));
-            }
-
-            state.renderedListCount = end;
-            container.appendChild(frag);
-
-            if (state.renderedListCount < state.filteredKiosks.length) {
-                const wrap = document.createElement('div');
-                wrap.className = 'load-more-btn-wrap pt-1 pb-2 text-center';
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'px-4 py-2 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition shadow-2xs';
-                btn.textContent = `Показать ещё (${state.filteredKiosks.length - state.renderedListCount})`;
-                btn.onclick = () => appendNextKioskBatch();
-                wrap.appendChild(btn);
-                container.appendChild(wrap);
-            }
-        }
-
-        function buildKioskCardElement(kiosk, evalInfo) {
-            const card = document.createElement('div');
-            const isSelected = state.selectedKioskId === kiosk.id;
-            card.className = `p-3 rounded-2xl border transition cursor-pointer bg-white hover:shadow-md ${
-                isSelected ? 'border-sky-500 ring-2 ring-sky-500/20' : 'border-slate-200/90'
-            }`;
-            card.onclick = () => focusKioskOnMap(kiosk.id);
-
-            const topRow = document.createElement('div');
-            topRow.className = 'flex items-start justify-between gap-2';
-
-            const titleWrap = document.createElement('div');
-            titleWrap.className = 'min-w-0 flex-1';
-
-            const idAndName = document.createElement('div');
-            idAndName.className = 'flex items-center gap-1.5';
-
-            const idBadge = document.createElement('span');
-            idBadge.className = 'px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200 shrink-0';
-            idBadge.textContent = kiosk.id;
-
-            const titleEl = document.createElement('h3');
-            titleEl.className = 'font-bold text-xs sm:text-sm text-slate-900 truncate';
-            titleEl.textContent = kiosk.name;
-
-            idAndName.appendChild(idBadge);
-            idAndName.appendChild(titleEl);
-
-            const addrEl = document.createElement('p');
-            addrEl.className = 'text-[11px] text-slate-500 truncate mt-0.5';
-            addrEl.textContent = kiosk.address;
-
-            titleWrap.appendChild(idAndName);
-            titleWrap.appendChild(addrEl);
-
-            const statusBadge = document.createElement('span');
-            statusBadge.className = `px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${evalInfo.badgeBg}`;
-            statusBadge.textContent = evalInfo.statusLabel;
-
-            topRow.appendChild(titleWrap);
-            topRow.appendChild(statusBadge);
-            card.appendChild(topRow);
-
-            // Шкала уровня воды
-            if (evalInfo.status !== 'nodata' && evalInfo.status !== 'excluded') {
-                const barWrap = document.createElement('div');
-                barWrap.className = 'mt-2.5';
-
-                const barTrack = document.createElement('div');
-                barTrack.className = 'w-full h-2 bg-slate-100 rounded-full overflow-hidden';
-
-                const barFill = document.createElement('div');
-                barFill.className = 'h-full rounded-full transition-all duration-300';
-                barFill.style.width = `${evalInfo.level.percent}%`;
-                barFill.style.backgroundColor = evalInfo.barColor;
-
-                barTrack.appendChild(barFill);
-
-                const metaRow = document.createElement('div');
-                metaRow.className = 'flex items-center justify-between text-[11px] text-slate-500 mt-1';
-
-                const volSpan = document.createElement('span');
-                volSpan.className = 'font-semibold text-slate-700';
-                volSpan.textContent = `${evalInfo.level.liters} / ${evalInfo.level.maxLiters} л (${evalInfo.level.percent}%)`;
-
-                const timeSpan = document.createElement('span');
-                timeSpan.className = evalInfo.status === 'offline' ? 'text-red-600 font-semibold' : '';
-                timeSpan.textContent = evalInfo.timeInfo.displayText;
-
-                metaRow.appendChild(volSpan);
-                metaRow.appendChild(timeSpan);
-
-                barWrap.appendChild(barTrack);
-                barWrap.appendChild(metaRow);
-                card.appendChild(barWrap);
-            }
-
-            return card;
-        }
-
-        // =========================================================================
-        // 8. ОТРИСОВКА КАСТОМНЫХ МАРКЕРОВ С ВОЛНОЙ И ПОПАПОВ НА КАРТЕ
-        // =========================================================================
-        function createWaterMarkerIcon(kiosk, evalInfo, disablePulse) {
-            const pin = document.createElement('div');
-            pin.className = 'water-pin';
-            pin.style.borderColor = evalInfo.borderColor;
-
-            if (state.selectedKioskId === kiosk.id) {
-                pin.classList.add('is-active');
-            }
-            if (!disablePulse) {
-                if (evalInfo.status === 'critical') pin.classList.add('is-critical');
-                if (evalInfo.status === 'offline') pin.classList.add('is-offline');
-            }
-
-            const inner = document.createElement('div');
-            inner.className = 'water-pin-inner';
-
-            if (evalInfo.pinFillPct > 0) {
-                const liquid = document.createElement('div');
-                liquid.className = 'water-pin-liquid';
-                liquid.style.height = `${evalInfo.pinFillPct}%`;
-                liquid.style.backgroundColor = evalInfo.fillColor;
-
-                if (evalInfo.pinFillPct < 100) {
-                    const svgNs = 'http://www.w3.org/2000/svg';
-                    const svg = document.createElementNS(svgNs, 'svg');
-                    svg.setAttribute('viewBox', '0 0 120 14');
-                    svg.setAttribute('preserveAspectRatio', 'none');
-                    svg.setAttribute('class', 'water-pin-wave');
-
-                    const path = document.createElementNS(svgNs, 'path');
-                    path.setAttribute('d', 'M0,7 Q15,0 30,7 T60,7 T90,7 T120,7 L120,14 L0,14 Z');
-                    path.setAttribute('fill', evalInfo.fillColor);
-                    svg.appendChild(path);
-                    liquid.appendChild(svg);
-                }
-
-                inner.appendChild(liquid);
-            }
-
-            const label = document.createElement('div');
-            label.className = 'water-pin-label';
-            label.style.color = evalInfo.textColor;
-
-            const idLine = document.createElement('span');
-            idLine.style.fontWeight = '800';
-            idLine.style.fontSize = String(kiosk.id).length > 4 ? '10px' : '12px';
-            idLine.textContent = String(kiosk.id);
-
-            const subLine = document.createElement('span');
-            subLine.style.fontWeight = '700';
-            subLine.style.fontSize = String(evalInfo.subLabel).length > 4 ? '7.5px' : '8.5px';
-            subLine.style.opacity = '0.92';
-            subLine.textContent = evalInfo.subLabel;
-
-            label.appendChild(idLine);
-            label.appendChild(subLine);
-            inner.appendChild(label);
-            pin.appendChild(inner);
-
-            return L.divIcon({
-                html: pin.outerHTML,
-                className: 'water-pin-wrapper',
-                iconSize: [50, 50],
-                iconAnchor: [25, 50],
-                popupAnchor: [0, -48]
-            });
-        }
-
-        function buildPopupContentNode(kiosk, evalInfo) {
-            const root = document.createElement('div');
-            root.className = 'bg-white text-slate-800';
-
-            const header = document.createElement('div');
-            header.className = 'p-3.5 text-white';
-            header.style.backgroundColor = evalInfo.pinFillPct === 0 ? '#ef4444' : evalInfo.fillColor;
-            if (evalInfo.fillColor === '#ffe599' || evalInfo.fillColor === '#ea9999') {
-                header.className = 'p-3.5 text-slate-900';
-            }
-
-            const topBadge = document.createElement('div');
-            topBadge.className = 'text-[10px] font-extrabold uppercase tracking-wider opacity-85';
-            topBadge.textContent = `ID: ${kiosk.id} • ${evalInfo.statusLabel}`;
-
-            const title = document.createElement('div');
-            title.className = 'font-bold text-sm mt-0.5 leading-snug pr-5';
-            title.textContent = kiosk.name;
-
-            const addr = document.createElement('div');
-            addr.className = 'text-xs opacity-90 mt-0.5';
-            addr.textContent = kiosk.address;
-
-            header.appendChild(topBadge);
-            header.appendChild(title);
-            header.appendChild(addr);
-            root.appendChild(header);
-
-            const body = document.createElement('div');
-            body.className = 'p-3.5 space-y-3';
-
-            if (evalInfo.status !== 'nodata' && evalInfo.status !== 'excluded') {
-                const tankRow = document.createElement('div');
-                tankRow.className = 'flex items-center gap-3.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80';
-
-                const tank = document.createElement('div');
-                tank.className = 'w-11 h-16 rounded-xl border-2 border-slate-300 bg-white relative overflow-hidden shrink-0 flex items-end';
-
-                const fill = document.createElement('div');
-                fill.className = 'w-full tank-fill';
-                fill.style.height = `${evalInfo.level.percent}%`;
-                fill.style.backgroundColor = evalInfo.barColor;
-                tank.appendChild(fill);
-
-                const info = document.createElement('div');
-                info.className = 'text-xs space-y-1';
-
-                const pctEl = document.createElement('div');
-                pctEl.className = 'text-lg font-extrabold text-slate-900 leading-none';
-                pctEl.textContent = `${evalInfo.level.percent}%`;
-
-                const litEl = document.createElement('div');
-                litEl.className = 'text-slate-600 font-medium';
-                litEl.textContent = `${evalInfo.level.liters} из ${evalInfo.level.maxLiters} л`;
-
-                const timeEl = document.createElement('div');
-                timeEl.className = 'text-[11px] text-slate-500';
-                timeEl.textContent = `Обновлено: ${evalInfo.timeInfo.displayText}`;
-
-                info.appendChild(pctEl);
-                info.appendChild(litEl);
-                info.appendChild(timeEl);
-
-                tankRow.appendChild(tank);
-                tankRow.appendChild(info);
-                body.appendChild(tankRow);
-            }
-
-            // Кнопки маршрута
-            const navRow = document.createElement('div');
-            navRow.className = 'grid grid-cols-2 gap-2';
-
-            const isAndroid = /Android/i.test(navigator.userAgent);
-
-            const yandexNav = document.createElement('a');
-            yandexNav.href = `https://yandex.ru/maps/?rtext=~${kiosk.lat},${kiosk.lng}&rtt=auto`;
-            yandexNav.target = '_blank';
-            yandexNav.rel = 'noopener noreferrer';
-            yandexNav.className = 'py-2 px-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold text-[11px] text-center transition';
-            yandexNav.textContent = 'Яндекс.Навигатор';
-            if (isAndroid) {
-                yandexNav.onclick = (e) => {
-                    e.preventDefault();
-                    openNativeNavigator(
-                        `yandexnavi://build_route_on_map?lat_to=${kiosk.lat}&lon_to=${kiosk.lng}`,
-                        `https://yandex.ru/maps/?rtext=~${kiosk.lat},${kiosk.lng}&rtt=auto`
-                    );
-                };
-            }
-
-            const twoGisNav = document.createElement('a');
-            twoGisNav.href = `https://2gis.ru/geo/${kiosk.lng},${kiosk.lat}`;
-            twoGisNav.target = '_blank';
-            twoGisNav.rel = 'noopener noreferrer';
-            twoGisNav.className = 'py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] text-center transition';
-            twoGisNav.textContent = 'Открыть в 2ГИС';
-            if (isAndroid) {
-                twoGisNav.onclick = (e) => {
-                    e.preventDefault();
-                    openNativeNavigator(
-                        `dgis://2gis.ru/routeSearch/rsType/car/to/${kiosk.lng},${kiosk.lat}`,
-                        `https://2gis.ru/geo/${kiosk.lng},${kiosk.lat}`
-                    );
-                };
-            }
-
-            navRow.appendChild(yandexNav);
-            navRow.appendChild(twoGisNav);
-            body.appendChild(navRow);
-
-            root.appendChild(body);
-            return root;
-        }
-
-        function openNativeNavigator(deepLink, fallbackWebUrl) {
-            const start = Date.now();
-            window.location.href = deepLink;
-            setTimeout(() => {
-                if (document.visibilityState === 'visible' && Date.now() - start < 2200) {
-                    window.open(fallbackWebUrl, '_blank', 'noopener,noreferrer');
-                }
-            }, 1400);
-        }
-
-        function renderMapMarkers() {
-            if (!map) return;
-
-            if (clusterGroup) clusterGroup.clearLayers();
-            if (plainMarkersLayer) plainMarkersLayer.clearLayers();
-            markersById = {};
-
-            const disablePulse = state.filteredKiosks.length > 150;
-            const markers = [];
-
-            state.filteredKiosks.forEach(({ kiosk, evalInfo }) => {
-                const marker = L.marker([kiosk.lat, kiosk.lng], {
-                    icon: createWaterMarkerIcon(kiosk, evalInfo, disablePulse),
-                    kioskStatus: evalInfo.status
-                });
-
-                marker.bindPopup(() => buildPopupContentNode(kiosk, evalInfo), {
-                    maxWidth: 310
-                });
-
-                marker.on('click', () => {
-                    state.selectedKioskId = kiosk.id;
-                });
-
-                markers.push(marker);
-                markersById[kiosk.id] = marker;
-            });
-
-            if (state.clusteringEnabled && clusterGroup) {
-                clusterGroup.addLayers(markers);
-            } else if (plainMarkersLayer) {
-                markers.forEach(m => plainMarkersLayer.addLayer(m));
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 180) {
+                appendNextListBatch();
             }
         }
 
         function focusKioskOnMap(id) {
             state.selectedKioskId = id;
             const marker = markersById[id];
-            if (!marker || !map) return;
+
+            if (!marker || !map) {
+                showToast('У этой точки не заполнены координаты', 'warning');
+                return;
+            }
+
+            if (window.innerWidth < 1024) {
+                toggleMobileSheet(false);
+            }
 
             const latLng = marker.getLatLng();
             if (state.clusteringEnabled && clusterGroup) {
@@ -1709,401 +1944,167 @@
             }
         }
 
-        function fitAllMarkers() {
-            if (!map || state.filteredKiosks.length === 0) return;
-            const bounds = L.latLngBounds(state.filteredKiosks.map(({ kiosk }) => [kiosk.lat, kiosk.lng]));
-            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-        }
-
-        // =========================================================================
-        // 9. МОДАЛЬНЫЕ ОКНА, ОТЛАДКА СОПОСТАВЛЕНИЯ И ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-        // =========================================================================
+        /* =========================================================================
+           МОДАЛЬНЫЕ ОКНА АДМИНИСТРАТОРА (Google Таблица и Проверка координат)
+           ========================================================================= */
         function openSheetsModal() {
-            const input = document.getElementById('sheetUrlInput');
-            if (input) input.value = state.sheetUrl;
-            const sel = document.getElementById('autoRefreshSelect');
-            if (sel) sel.value = String(state.refreshIntervalSec);
-            document.getElementById('sheetsModal').classList.remove('hidden');
+            const urlInput = document.getElementById('sheetUrlInput');
+            const intervalSel = document.getElementById('refreshIntervalSelect');
+            if (urlInput) urlInput.value = state.sheetUrl;
+            if (intervalSel) intervalSel.value = String(state.refreshIntervalSec);
+            openModal('sheetsModal');
         }
 
-        function closeSheetsModal() {
-            document.getElementById('sheetsModal').classList.add('hidden');
+        function resetDefaultSheetUrl() {
+            const urlInput = document.getElementById('sheetUrlInput');
+            if (urlInput) urlInput.value = DEFAULT_SHEET_URL;
         }
 
-        function saveAndConnectSheet() {
-            const input = document.getElementById('sheetUrlInput');
-            const url = input ? input.value.trim() : '';
-            if (!url) {
-                showToast('Вставьте ссылку на Google Таблицу', 'error');
+        function saveSheetsSettings() {
+            const urlVal = (document.getElementById('sheetUrlInput')?.value || '').trim();
+            const secVal = parseInt(document.getElementById('refreshIntervalSelect')?.value || '60', 10);
+
+            if (!urlVal) {
+                showToast('Укажите ссылку на Google Таблицу', 'error');
                 return;
             }
-            state.sheetUrl = url;
-            localStorage.setItem(STORAGE_KEYS.SHEET_URL, url);
-            closeSheetsModal();
-            startAutoRefreshTimer();
+
+            state.sheetUrl = urlVal;
+            state.refreshIntervalSec = isNaN(secVal) ? 60 : secVal;
+            state.hasFittedInitialBounds = false;
+
+            localStorage.setItem(STORAGE_KEYS.SHEET_URL, state.sheetUrl);
+            localStorage.setItem(STORAGE_KEYS.REFRESH_SEC, String(state.refreshIntervalSec));
+
+            closeModal('sheetsModal');
+            setupAutoRefreshTimer();
             fetchGoogleSheetData(false);
         }
 
-        function changeRefreshInterval(secStr) {
-            const sec = parseInt(secStr, 10) || 0;
-            state.refreshIntervalSec = sec;
-            localStorage.setItem(STORAGE_KEYS.REFRESH_SEC, String(sec));
-            startAutoRefreshTimer();
-        }
-
-        function startAutoRefreshTimer() {
-            if (state.refreshTimerId) {
-                clearInterval(state.refreshTimerId);
-                state.refreshTimerId = null;
-            }
-            if (state.sheetUrl && state.refreshIntervalSec > 0) {
-                state.refreshTimerId = setInterval(() => {
-                    fetchGoogleSheetData(true);
-                }, state.refreshIntervalSec * 1000);
-            }
-        }
-
-        function manualRefresh() {
-            if (state.sheetUrl) {
-                fetchGoogleSheetData(false);
-            } else {
-                applyFilters(false);
-                updateLastSyncTime();
-                showToast('Демо-данные обновлены', 'info');
-            }
-        }
-
-        function resetToDemoMode() {
-            state.sheetUrl = '';
-            state.isDemoMode = true;
-            state.rawSheetRows = [];
-            state.unmatchedSheetList = [];
-            localStorage.removeItem(STORAGE_KEYS.SHEET_URL);
-            if (state.refreshTimerId) clearInterval(state.refreshTimerId);
-
-            state.kiosks = buildDynamicDemoKiosks();
-            applyFilters(true);
-            updateDebugBadgeUI();
-
-            updateSourceBadge(true, false);
-            updateLastSyncTime();
-            closeSheetsModal();
-            showToast('Включён демо-режим', 'info');
-        }
-
-        function downloadCsvTemplate() {
-            const csvRows = [
-                ['ID', 'Название', 'Полный адрес', 'Уровень', 'Макс. объем (л)', 'Время', 'Дата', 'Исключения'],
-                ['1', 'Водомат #01 — ТЦ Парк Хаус', 'Автозаводское шоссе, 6', '1720', '2000', '12:30', '24.11.2026', ''],
-                ['2', 'Водомат #02 — ЖК Лесная Слобода', 'ул. Баныкина, 21А', 'DOWN', '2000', '12:25', '24.11.2026', ''],
-                ['3', 'Водомат #03 — Бульвар Ленина', 'б-р Ленина, 14', 'MID', '2000', '12:20', '24.11.2026', ''],
-                ['4', 'Водомат #04 — Магазин Миндаль', 'ул. Революционная, 52', 'FULL', '2000', '12:31', '24.11.2026', ''],
-                ['5', 'Водомат #05 — ТЦ Вега', 'ул. Юбилейная, 40', 'LOW', '1500', '12:15', '24.11.2026', ''],
-                ['6', 'Водомат #06 — Улица Дзержинского', 'ул. Дзержинского, 29', '0', '2000', '10:00', '24.11.2026', 'Ремонт']
-            ];
-            const csvContent = '\uFEFF' + csvRows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'shablon_vodomaty.csv';
-            link.click();
-        }
-
-        function updateDebugBadgeUI() {
-            const btn = document.getElementById('debugHeaderBtn');
-            const countEl = document.getElementById('debugUnmatchedCount');
-            if (!btn || !countEl) return;
-            if (state.userRole !== 'admin') {
-                btn.classList.add('hidden');
-                return;
-            }
-            const totalIssues = state.unmatchedSheetList.length;
-            if (totalIssues > 0 && !state.isDemoMode) {
-                btn.classList.remove('hidden');
-                countEl.textContent = String(totalIssues);
-            } else {
-                btn.classList.add('hidden');
-            }
-        }
-
-        // =========================================================================
-        // УПРАВЛЕНИЕ РОЛЯМИ (АДМИНИСТРАТОР / ВОДИТЕЛЬ)
-        // =========================================================================
-        function applyUserRoleUI() {
-            const isAdmin = state.userRole === 'admin';
-            document.querySelectorAll('.admin-only-control').forEach(el => {
-                if (isAdmin) {
-                    el.classList.remove('hidden');
-                } else {
-                    el.classList.add('hidden');
-                }
-            });
-
-            const btnRole = document.getElementById('btnRoleSwitch');
-            const roleLabel = document.getElementById('roleLabel');
-            if (btnRole && roleLabel) {
-                if (state.isRoleLockedByUrl) {
-                    btnRole.classList.add('hidden');
-                } else {
-                    btnRole.classList.remove('hidden');
-                    if (isAdmin) {
-                        roleLabel.textContent = 'Администратор';
-                        btnRole.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 transition shadow-2xs';
-                    } else {
-                        roleLabel.textContent = 'Водитель';
-                        btnRole.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 transition shadow-2xs';
-                    }
-                }
-            }
-
-            if (!isAdmin) {
-                closeSheetsModal();
-                closeDebugModal();
-                closeChangePinModal();
-            } else {
-                updateDebugBadgeUI();
-            }
-        }
-
-        function handleRoleSwitchClick() {
-            if (state.isRoleLockedByUrl) return;
-            if (state.userRole === 'admin') {
-                state.userRole = 'driver';
-                localStorage.setItem(STORAGE_KEYS.USER_ROLE, 'driver');
-                applyUserRoleUI();
-                showToast('Включён режим водителя (редактирование скрыто)', 'info');
-            } else {
-                const modal = document.getElementById('adminPinModal');
-                const input = document.getElementById('adminPinInput');
-                if (input) input.value = '';
-                if (modal) modal.classList.remove('hidden');
-                if (input) setTimeout(() => input.focus(), 50);
-            }
-        }
-
-        function closeAdminPinModal() {
-            const modal = document.getElementById('adminPinModal');
-            if (modal) modal.classList.add('hidden');
-        }
-
-        function submitAdminPin() {
-            const input = document.getElementById('adminPinInput');
-            const entered = input ? input.value.trim() : '';
-            if (entered === getActiveAdminPin()) {
-                state.userRole = 'admin';
-                localStorage.setItem(STORAGE_KEYS.USER_ROLE, 'admin');
-                closeAdminPinModal();
-                applyUserRoleUI();
-                showToast('Вы вошли в режим администратора', 'success');
-            } else {
-                showToast('Неверный PIN-код администратора', 'error');
-            }
-        }
-
-        function openChangePinModal() {
-            if (state.userRole !== 'admin') return;
-            ['oldPinInput', 'newPinInput', 'confirmNewPinInput'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            const modal = document.getElementById('changePinModal');
-            if (modal) modal.classList.remove('hidden');
-            const oldInput = document.getElementById('oldPinInput');
-            if (oldInput) setTimeout(() => oldInput.focus(), 50);
-        }
-
-        function closeChangePinModal() {
-            const modal = document.getElementById('changePinModal');
-            if (modal) modal.classList.add('hidden');
-        }
-
-        function submitChangePin() {
-            const oldVal = (document.getElementById('oldPinInput')?.value || '').trim();
-            const newVal = (document.getElementById('newPinInput')?.value || '').trim();
-            const confirmVal = (document.getElementById('confirmNewPinInput')?.value || '').trim();
-
-            if (oldVal !== getActiveAdminPin()) {
-                showToast('Текущий PIN-код введён неверно', 'error');
-                return;
-            }
-            if (newVal.length < 4) {
-                showToast('Новый PIN-код должен содержать минимум 4 символа', 'error');
-                return;
-            }
-            if (newVal !== confirmVal) {
-                showToast('Новый PIN-код и подтверждение не совпадают', 'error');
-                return;
-            }
-
-            localStorage.setItem(STORAGE_KEYS.ADMIN_PIN, newVal);
-            closeChangePinModal();
-            showToast('PIN-код администратора успешно изменён', 'success');
-        }
-
         function openDebugModal() {
-            renderDebugModalContent();
-            document.getElementById('debugModal').classList.remove('hidden');
+            const searchEl = document.getElementById('debugSearchInput');
+            if (searchEl) searchEl.value = '';
+            renderDebugTable('');
+            openModal('debugModal');
         }
 
-        function closeDebugModal() {
-            document.getElementById('debugModal').classList.add('hidden');
-        }
+        function renderDebugTable(query) {
+            const tbody = document.getElementById('debugTableBody');
+            const summary = document.getElementById('debugModalSummary');
+            if (!tbody) return;
 
-        function handleDebugSearch(val) {
-            state.debugSearchQuery = val;
-            renderDebugModalContent();
-        }
+            const q = (query || '').trim().toLowerCase();
+            const items = state.unmatchedSheetList.filter(item => {
+                if (!q) return true;
+                return `${item.id} ${item.address}`.toLowerCase().includes(q);
+            });
 
-        function renderDebugModalContent() {
-            const totalRows = state.rawSheetRows.length;
-            const missingCount = state.unmatchedSheetList.length;
-            const withCoordsCount = Math.max(0, totalRows - missingCount);
+            if (summary) {
+                summary.textContent = state.unmatchedSheetList.length === 0
+                    ? 'Все активные строки таблицы имеют корректные координаты'
+                    : `Найдено активных строк без координат: ${state.unmatchedSheetList.length}`;
+            }
 
-            document.getElementById('dbgTotalSheet').textContent = String(totalRows);
-            document.getElementById('dbgMatched').textContent = String(withCoordsCount);
-            document.getElementById('dbgUnmatchedSheet').textContent = String(missingCount);
-
-            const container = document.getElementById('debugContentContainer');
-            container.innerHTML = '';
-            const q = state.debugSearchQuery.trim().toLowerCase();
-
-            const list = state.unmatchedSheetList.filter(r =>
-                !q || r.id.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.address.toLowerCase().includes(q)
-            );
-
-            if (list.length === 0) {
-                const msg = document.createElement('div');
-                msg.className = 'text-center py-8 text-xs text-slate-500 bg-white rounded-2xl border border-slate-200';
-                msg.textContent = 'У всех активных строк Google Таблицы заполнены Широта и Долгота.';
-                container.appendChild(msg);
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-slate-400 font-medium">
+                            ${state.unmatchedSheetList.length === 0 ? 'Отлично! У всех активных киосков заполнены Широта и Долгота.' : 'Ничего не найдено по запросу'}
+                        </td>
+                    </tr>
+                `;
                 return;
             }
 
-            list.forEach(row => {
-                const card = document.createElement('div');
-                card.className = 'bg-white p-3.5 rounded-2xl border border-slate-200 space-y-1.5';
-
-                const head = document.createElement('div');
-                head.className = 'flex items-center justify-between gap-2';
-
-                const title = document.createElement('div');
-                title.className = 'font-bold text-xs text-slate-900';
-                title.textContent = `[Колонка A: ${row.id}] ${row.name}`;
-
-                const badge = document.createElement('span');
-                badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200';
-                badge.textContent = 'Нет координат в таблице';
-
-                head.appendChild(title);
-                head.appendChild(badge);
-
-                const addr = document.createElement('div');
-                addr.className = 'text-[11px] text-slate-500';
-                addr.textContent = `Адрес: ${row.address} • Строка таблицы: ${row.rowIndex}`;
-
-                card.appendChild(head);
-                card.appendChild(addr);
-                container.appendChild(card);
-            });
+            tbody.innerHTML = items.map(item => `
+                <tr class="hover:bg-slate-50">
+                    <td class="py-2.5 px-4 font-bold text-slate-900">${escapeHtml(item.id)}</td>
+                    <td class="py-2.5 px-4 text-slate-700">${escapeHtml(item.address)}</td>
+                    <td class="py-2.5 px-4 font-semibold text-slate-800">${escapeHtml(item.level)}</td>
+                    <td class="py-2.5 px-4 text-purple-600">${escapeHtml(item.reason)}</td>
+                </tr>
+            `).join('');
         }
 
-        function exportDebugReportCsv() {
-            const rows = [['Строка таблицы', 'ID (Колонка A)', 'Название', 'Адрес']];
-            state.unmatchedSheetList.forEach(r => {
-                rows.push([r.rowIndex, r.id, r.name, r.address]);
-            });
-            const csvContent = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'stroki_bez_koordinat.csv';
-            link.click();
-        }
-
-        function updateSourceBadge(isDemo, isError) {
-            const badge = document.getElementById('sourceBadge');
-            if (!badge) return;
-            badge.innerHTML = '';
-
-            const dot = document.createElement('span');
-            const label = document.createElement('span');
-
-            if (isError) {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200';
-                dot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
-                label.textContent = 'Ошибка таблицы';
-            } else if (isDemo) {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200';
-                dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
-                label.textContent = 'Демо-режим';
-            } else {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
-                dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
-                label.textContent = 'Google Таблица Online';
+        function exportUnmatchedCsv() {
+            if (state.unmatchedSheetList.length === 0) {
+                showToast('Нет строк без координат для выгрузки', 'info');
+                return;
             }
 
-            badge.appendChild(dot);
-            badge.appendChild(label);
-        }
-
-        function updateLastSyncTime() {
-            const el = document.getElementById('lastSyncText');
-            if (!el) return;
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, '0');
-            const mm = String(now.getMinutes()).padStart(2, '0');
-            const ss = String(now.getSeconds()).padStart(2, '0');
-            el.textContent = `Синхронизация: ${hh}:${mm}:${ss}`;
-        }
-
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-
-            const colors = {
-                success: 'bg-slate-900 text-white border-emerald-500/50',
-                error: 'bg-red-600 text-white border-red-400',
-                info: 'bg-slate-800 text-white border-slate-600'
-            };
-
-            const toast = document.createElement('div');
-            toast.className = `px-4 py-2.5 rounded-xl shadow-lg border text-xs font-semibold pointer-events-auto transition-all duration-300 ${colors[type] || colors.info}`;
-            toast.textContent = message;
-
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3400);
-        }
-
-        // =========================================================================
-        // 10. СТАРТ ПРИЛОЖЕНИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
-        // =========================================================================
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => {
-                    console.warn('Service Worker не зарегистрирован:', err);
-                });
+            const lines = ['ID;Адрес;Уровень;Причина'];
+            state.unmatchedSheetList.forEach(item => {
+                const safe = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+                lines.push([safe(item.id), safe(item.address), safe(item.level), safe(item.reason)].join(';'));
             });
+
+            const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'kiosks-without-coords.csv';
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
+        /* =========================================================================
+           СВАЙПЫ ДЛЯ МОБИЛЬНОЙ ПАНЕЛИ (BOTTOM SHEET)
+           ========================================================================= */
+        function initMobileSheetTouchGestures() {
+            const handle = document.getElementById('mobileSheetHandle');
+            if (!handle) return;
+
+            let startY = 0;
+            handle.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    startY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            handle.addEventListener('touchend', (e) => {
+                if (!e.changedTouches || e.changedTouches.length === 0) return;
+                const deltaY = e.changedTouches[0].clientY - startY;
+                if (deltaY < -30) {
+                    toggleMobileSheet(true);
+                } else if (deltaY > 30) {
+                    toggleMobileSheet(false);
+                }
+            }, { passive: true });
+        }
+
+        /* =========================================================================
+           ЗАПУСК ПРИЛОЖЕНИЯ И РЕГИСТРАЦИЯ SERVICE WORKER
+           ========================================================================= */
         window.addEventListener('DOMContentLoaded', () => {
             if (window.lucide && typeof window.lucide.createIcons === 'function') {
                 window.lucide.createIcons();
             }
 
-            initMap();
-            applyUserRoleUI();
+            document.addEventListener('click', (e) => {
+                if (!state.mobileMenuOpen) return;
+                const menu = document.getElementById('collapsibleNavMenu');
+                const btn = document.getElementById('btnToggleMenu');
+                if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+                    toggleMobileMenu(false);
+                }
+            });
 
-            if (state.sheetUrl) {
-                startAutoRefreshTimer();
-                fetchGoogleSheetData(false);
-            } else {
-                state.kiosks = buildDynamicDemoKiosks();
-                applyFilters(true);
-                updateSourceBadge(true, false);
-                updateLastSyncTime();
+            window.addEventListener('resize', () => {
+                toggleMobileSheet(state.mobileSheetExpanded);
+                if (map) map.invalidateSize();
+            });
+
+            initMap();
+            initMobileSheetTouchGestures();
+            applyUserRoleUI();
+            toggleMobileSheet(false);
+            setupAutoRefreshTimer();
+            fetchGoogleSheetData(true);
+        });
+
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
             }
         });
     </script>
